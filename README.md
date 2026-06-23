@@ -4,6 +4,8 @@
 
 Durable execution for TypeScript AI agents. Crash-proof workflows that resume exactly where they left off, with zero cloud services and zero cost.
 
+![keel charges a card, crashes, then resumes and ships without charging again](demo/demo.gif)
+
 If your agent calls an LLM, charges a card, then crashes, you do not want to repeat the LLM call or the charge on restart. keel records every step. On resume, completed steps replay from a local store instead of running again. A workflow that died at step 7 picks up at step 7.
 
 ## Why
