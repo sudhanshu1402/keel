@@ -6,11 +6,19 @@ Durable execution for TypeScript AI agents. Crash-proof workflows that resume ex
 
 ![keel charges a card, crashes, then resumes and ships without charging again](demo/demo.gif)
 
-If your agent calls an LLM, charges a card, then crashes, you do not want to repeat the LLM call or the charge on restart. keel records every step. On resume, completed steps replay from a local store instead of running again. A workflow that died at step 7 picks up at step 7.
+## What is this?
+
+keel keeps a program running correctly even when it crashes partway through.
+
+Say your code runs three things in order: charge a card, reserve stock, ship the order. If the process dies after the charge but before the ship, restarting it the naive way charges the card a second time. The same trap hits AI agents: crash mid-run and on restart you re-call the model and pay for the tokens all over again.
+
+keel removes that risk. You write the work as named steps. Each step runs once and keel saves its result. When the program restarts, keel sees a step is already done and hands back the saved result instead of running it again, so the run continues from the exact point it failed. A run that died at step 7 picks up at step 7. No double charges, no repeated side effects.
+
+That idea is called durable execution. The demo above shows it: run 1 charges the card and crashes, run 2 resumes and ships without charging again.
 
 ## Why
 
-Temporal, Inngest, and DBOS solve this, but they pull in a server, a hosted control plane, or a database. keel is the same core idea in a few hundred lines of dependency-free TypeScript:
+Temporal, Inngest, and DBOS do this too, but they pull in a server, a hosted control plane, or a database. keel is the same core idea in a few hundred lines of dependency-free TypeScript:
 
 - **Zero runtime dependencies** in the core.
 - **Local-first.** Default store is an in-memory map; the file store is a single JSON file. No database, no broker, no account.
