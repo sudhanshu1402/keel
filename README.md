@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/sudhanshu1402/keel/actions/workflows/ci.yml/badge.svg)](https://github.com/sudhanshu1402/keel/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
 
-Durable execution for TypeScript. Zero build step, zero lock-in, and a dashboard that runs on your laptop. Scales from a single JSON file to a SQLite-backed multi-worker pool. No cloud, no account, no cost.
+Durable execution for TypeScript, deliberately lighter. Same idea as Temporal and Vercel Workflow, but with zero build tooling and zero database: drop it into any Node script, persist to a file, and debug on a local dashboard. Built for side projects, local agents, and internal tools.
 
 ![keel charges a card, crashes, then resumes and ships without charging again](demo/demo.gif)
 

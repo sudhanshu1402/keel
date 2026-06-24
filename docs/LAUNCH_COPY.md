@@ -12,8 +12,13 @@ own the comparison instead of being cornered by it.
 **Title** (HN strips emoji; keep it plain):
 
 ```
-Show HN: Keel - durable execution for TypeScript, no build step, local dashboard
+Show HN: keel - durable execution for TypeScript, no build step, no database
 ```
+
+One-line positioning (use as the repo description and the lede everywhere):
+Same idea as Temporal and Vercel Workflow, deliberately lighter - durable
+execution with zero build tooling and zero database, for side projects, local
+agents, and internal tools.
 
 **First comment (post immediately after submitting):**
 
