@@ -4,11 +4,11 @@ The first release: the durable execution core.
 
 ## What it does
 
-Run a workflow as a sequence of named steps. Each step runs once, its result is persisted, and on any later execution of the same run the stored result replays instead of running again. If the process crashes at step 7, a resume picks up at step 7. No double charges, no repeated LLM calls.
+Run a workflow as a sequence of named steps. Each completed step's result is persisted, and on any later execution of the same run the stored result replays instead of running again. If the process crashes at step 7, a resume picks up at step 7. It is at-least-once (a step interrupted mid-side-effect re-runs on resume); the steps that already finished are never redone.
 
 ## Highlights
 
-- **Durable steps** with `ctx.step(name, fn)` — exactly-once side effects via memoized replay.
+- **Durable steps** with `ctx.step(name, fn)` — completed steps replay from the store; at-least-once with idempotency keys for the crash-mid-step window.
 - **Crash recovery** — `keel.resume(runId)` rebuilds state from the store after a restart.
 - **Durable sleep** — `ctx.sleep(name, ms)` survives restarts and does not re-wait once elapsed.
 - **Retries** with exponential backoff and a per-step policy.
