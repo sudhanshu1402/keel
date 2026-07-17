@@ -1,6 +1,6 @@
 # keel
 
-[![CI](https://github.com/sudhanshu1402/keel/actions/workflows/ci.yml/badge.svg)](https://github.com/sudhanshu1402/keel/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
+[![CI](https://github.com/sudhanshu1402/keel/actions/workflows/ci.yml/badge.svg)](https://github.com/sudhanshu1402/keel/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/%40sudhanshu1402%2Fkeel.svg)](https://www.npmjs.com/package/@sudhanshu1402/keel) [![npm downloads](https://img.shields.io/npm/dm/%40sudhanshu1402%2Fkeel.svg)](https://www.npmjs.com/package/@sudhanshu1402/keel) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
 
 Durable execution for TypeScript, deliberately lighter. Same idea as Temporal and Vercel Workflow, but with zero build tooling and zero database: drop it into any Node script, persist to a file, and debug on a local dashboard. Built for side projects, local agents, and internal tools.
 
@@ -23,7 +23,7 @@ That idea is called durable execution. The demo above shows it: run 1 charges th
 Temporal, Inngest, DBOS, and Vercel's Workflow SDK all do durable execution. They also pull in a server, a hosted control plane, a database, or a build-time compiler transform. keel is the same core idea in a few hundred lines of dependency-free TypeScript, with the trade made in the opposite direction:
 
 - **No build step.** Vercel's Workflow SDK is built on `"use workflow"` / `"use step"` directives that only work inside their bundler; you cannot run those files in plain Node. keel is ordinary `ctx.step()` method calls. It runs anywhere Node runs, with no transform in the path.
-- **Local observability.** `npx keel dashboard` serves a zero-config run dashboard from your own store. Every run, every step, token counts, errors, Resume and Send-signal buttons, on `http://127.0.0.1`. The hosted engines put this in the cloud.
+- **Local observability.** `npx keel dashboard` serves a zero-config run dashboard from your own store. Every run, every step, token counts, errors, Resume and Send-signal buttons, on `http://127.0.0.1`. No build toolchain, no queue backend, no account - it reads the same file your app writes.
 - **Zero lock-in.** One tier, MIT, no account, no usage pricing. Your run history is a JSON file or a SQLite database you own.
 - **Trivial testing.** In-memory store plus a mock provider plus an injectable clock means a durable workflow test needs zero infrastructure and runs deterministically in milliseconds. Crash-and-resume is a unit test.
 - **Zero runtime dependencies** in the core. `package.json` has no `dependencies` field at all.
@@ -32,12 +32,12 @@ A full, honest side-by-side is in [docs/COMPARISON.md](docs/COMPARISON.md), and 
 
 | | keel | Vercel Workflow | Temporal |
 |---|---|---|---|
-| Build step required | no | yes | no |
+| Build step required | no | yes (SWC + bundler) | no |
 | Runs in plain Node | yes | no | yes |
-| Local dashboard, zero config | yes | cloud only | run a server |
-| Account to start | no | yes | no |
+| Local dashboard, zero config | yes | local UI via build toolchain | run a server |
+| Account to start | no | no (self-host) | no |
 | Core runtime deps | zero | bundler + runtime | server + client |
-| Store | memory / JSON / SQLite | managed | DB cluster |
+| Store | memory / JSON / SQLite | Postgres / managed | DB cluster |
 
 ## Install
 

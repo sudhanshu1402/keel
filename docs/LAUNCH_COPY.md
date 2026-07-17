@@ -45,13 +45,14 @@ redone.)
     return ctx.step('ship', () => ship(input.id, charge));
   });
 
-The three things I think keel does that the others structurally cannot:
+The three trades keel makes that the others do not:
 
   1. No build step. ctx.step() is a plain method call. It runs in `node file.js`,
      in a test, in a cron job. No bundler, no directives, no transform.
-  2. Local observability. `npx keel dashboard` serves a run dashboard from your
-     own store with zero config - every run, step, token count, error, plus
-     Resume and Send-signal buttons. No cloud, no account.
+  2. Local observability with nothing to stand up. `npx keel dashboard` serves a
+     run dashboard straight from your own store - every run, step, token count,
+     error, plus Resume and Send-signal buttons. No build toolchain, no queue
+     backend, no account.
   3. Zero lock-in. MIT, one tier, no account. Your history is a JSON file or a
      SQLite db you own.
 
@@ -72,24 +73,23 @@ actually use it.
 **Canned reply for "isn't this just Vercel Workflow / didn't Vercel just ship this?":**
 
 ```
-Vercel's Workflow SDK is good and solves the same core problem, but the design
-goes the opposite way on the trade I cared about. It is built on "use workflow"
-and "use step" directives that an SWC transform rewrites at build time - elegant
-inside their bundler, and you cannot run those files in plain Node. keel is
-ordinary ctx.step() method calls: no transform, runs anywhere Node runs.
+Vercel's Workflow SDK is good and solves the same core problem - and to be fair,
+it has gotten more self-contained: v4 can self-host, and `npx workflow web`
+gives you a local run UI. The difference is structural, not feature-count.
 
-The bigger gap is local DX. Vercel's observability is in the cloud and local dev
-is comparatively a black box (their issue #888, "Testing workflows locally with
-vitest," github.com/vercel/workflow/issues/888, is exactly this: getting a
-workflow under test locally is fiddly).
-keel's whole pitch is the other side of that: `npx keel dashboard` against a
-local file, in-memory store plus mock provider for tests, no account.
+Their design is built on "use workflow" and "use step" directives that an SWC
+transform rewrites at build time. Elegant inside a bundler, but those files
+cannot run in plain `node file.js` - the build toolchain is always in the path,
+for dev, for tests, for the local UI. keel is ordinary ctx.step() method calls:
+no transform, zero runtime dependencies, runs anywhere Node runs. The whole
+engine, dashboard included, reads a JSON file or SQLite db you own - nothing to
+build and no queue backend to stand up. Testing is an in-memory store plus a
+mock provider: crash/resume is a milliseconds-fast unit test with no infra.
 
 If you are already on Vercel and want durable workflows wired into that platform
 and the AI SDK, use theirs - it is the better fit there. If you want durable
-execution in plain TypeScript that debugs on your laptop and has no vendor
-relationship, that is exactly the gap keel fills. Full side-by-side is in
-docs/COMPARISON.md.
+execution in plain TypeScript with no build step and no infrastructure, that is
+the gap keel fills. Full side-by-side is in docs/COMPARISON.md.
 ```
 
 ---

@@ -8,13 +8,13 @@ Run a workflow as a sequence of named steps. Each completed step's result is per
 
 ## Highlights
 
-- **Durable steps** with `ctx.step(name, fn)` — completed steps replay from the store; at-least-once with idempotency keys for the crash-mid-step window.
-- **Crash recovery** — `keel.resume(runId)` rebuilds state from the store after a restart.
-- **Durable sleep** — `ctx.sleep(name, ms)` survives restarts and does not re-wait once elapsed.
+- **Durable steps** with `ctx.step(name, fn)` - completed steps replay from the store; at-least-once with idempotency keys for the crash-mid-step window.
+- **Crash recovery** - `keel.resume(runId)` rebuilds state from the store after a restart.
+- **Durable sleep** - `ctx.sleep(name, ms)` survives restarts and does not re-wait once elapsed.
 - **Retries** with exponential backoff and a per-step policy.
-- **Durable LLM steps** — `ctx.llm(name, { prompt })` with token capture; memoized so a resume never repays for a completion.
-- **Stores** — `MemoryStore` (default) and `FileStore` (single JSON file, atomic writes).
-- **Providers** — `OllamaProvider` (free, local, no API key) and `MockProvider` for tests.
+- **Durable LLM steps** - `ctx.llm(name, { prompt })` with token capture; memoized so a resume never repays for a completion.
+- **Stores** - `MemoryStore` (default) and `FileStore` (single JSON file, atomic writes).
+- **Providers** - `OllamaProvider` (free, local, no API key) and `MockProvider` for tests.
 - **Zero runtime dependencies.** Fully typed. Node 20+.
 
 ## Install

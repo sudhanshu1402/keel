@@ -19,7 +19,7 @@ Every post, README, and comment leads with a variant of this. Anchor on the pain
 - [ ] LICENSE present (MIT). CONTRIBUTING.md with a one-command dev setup.
 - [ ] Social preview image (1280x640) uploaded in repo Settings.
 - [ ] npm package name secured. `keel` is likely taken; publish as a scope (`@sudhanshu1402/keel`) or pick a free name and keep the repo name as the brand. Verify with `npm view <name>` before announcing.
-- [ ] Version tagged `v0.1.0`, GitHub Release created with notes.
+- [ ] Version tagged `v1.0.0`, GitHub Release created with notes.
 
 ## Publish to npm
 
@@ -40,11 +40,11 @@ Add the npm version + downloads badges to the README once live:
 Launch over one day, not one post. Stagger so you can answer comments live in each place.
 
 1. **Show HN** (`Show HN: keel - durable execution for TypeScript AI agents, no server`). Best signal-to-star channel for infra/dev tools. Post Tue-Thu, ~8am ET. First comment from you: the "why" (Temporal/Inngest need a server; this is the core idea in a few hundred dependency-free lines) plus the GIF link. Reply to every comment for the first 4 hours.
-2. **r/LocalLLaMA** — the zero-cost + Ollama angle is native to this audience. Lead with "runs entirely local, no API key, crash-proof agent runs."
-3. **r/node** and **r/typescript** — lead with the DX and the typed step API. Code snippet first, link second.
-4. **dev.to / Hashnode article** — "Why your AI agent shouldn't lose its work when it crashes (and how durable execution fixes it)." Teaches the concept, then shows keel as the minimal implementation. Cross-post to your own blog.
-5. **X/Twitter + LinkedIn thread** — the GIF + 4-tweet thread: problem, the naive failure, the fix, the repo. LinkedIn version doubles as recruiter signal.
-6. **Lobsters** (`programming`, `javascript` tags) — smaller but high-quality infra audience.
+2. **r/LocalLLaMA** - the zero-cost + Ollama angle is native to this audience. Lead with "runs entirely local, no API key, crash-proof agent runs."
+3. **r/node** and **r/typescript** - lead with the DX and the typed step API. Code snippet first, link second.
+4. **dev.to / Hashnode article** - "Why your AI agent shouldn't lose its work when it crashes (and how durable execution fixes it)." Teaches the concept, then shows keel as the minimal implementation. Cross-post to your own blog.
+5. **X/Twitter + LinkedIn thread** - the GIF + 4-tweet thread: problem, the naive failure, the fix, the repo. LinkedIn version doubles as recruiter signal.
+6. **Lobsters** (`programming`, `javascript` tags) - smaller but high-quality infra audience.
 
 ## Awesome-list PRs (compounding, evergreen discovery)
 
@@ -60,7 +60,7 @@ Each merged entry is a permanent backlink and a steady trickle of qualified traf
 
 ## Content flywheel (weeks 2-6, keeps stars compounding after launch)
 
-- Comparison page in docs: keel vs Temporal vs Inngest vs DBOS — honest table (keel wins on zero-setup/local/cost; loses on scale/distributed — say so). Honesty earns trust and ranks for the comparison searches people actually run.
+- Comparison page in docs: keel vs Temporal vs Inngest vs DBOS - honest table (keel wins on zero-setup/local/cost; loses on scale/distributed - say so). Honesty earns trust and ranks for the comparison searches people actually run.
 - A second example that hits a nerve: a durable multi-step agent that calls a tool, sleeps, and resumes after a restart mid-tool-call.
 - Short blog post per shipped feature (dashboard, HITL signals, Redis adapter). Each is a fresh reason to re-share.
 - Answer Stack Overflow / Reddit / Discord questions about "agent crashed and repeated work" with a genuine solution that mentions keel where it fits. Never spam.
@@ -69,11 +69,11 @@ Each merged entry is a permanent backlink and a steady trickle of qualified traf
 
 Ship these in order; each is a launchable update:
 
-1. **Localhost run dashboard** — `keel dashboard` opens a local page showing runs, steps, status, tokens, and a replay button. Visual, demo-able, screenshot-friendly. Highest star-per-effort after v1.
-2. **Human-in-the-loop signals** — `ctx.waitForSignal(name)` pauses durably until an external `keel.signal(runId, name, payload)`. Unlocks approval workflows, a top agent use case.
-3. **SQLite store adapter** — still zero-config and local, but durable and queryable. Natural upgrade from the JSON file store.
-4. **Redis store adapter** — the multi-process / horizontal story for people who outgrow local.
-5. **OpenTelemetry export** — ties into the existing otel-sdk-node project; cross-promote both.
+1. **Localhost run dashboard** - `keel dashboard` opens a local page showing runs, steps, status, tokens, and a replay button. Visual, demo-able, screenshot-friendly. Highest star-per-effort after v1.
+2. **Human-in-the-loop signals** - `ctx.waitForSignal(name)` pauses durably until an external `keel.signal(runId, name, payload)`. Unlocks approval workflows, a top agent use case.
+3. **SQLite store adapter** - still zero-config and local, but durable and queryable. Natural upgrade from the JSON file store.
+4. **Redis store adapter** - the multi-process / horizontal story for people who outgrow local.
+5. **OpenTelemetry export** - ties into the existing otel-sdk-node project; cross-promote both.
 
 ## Metrics to watch
 

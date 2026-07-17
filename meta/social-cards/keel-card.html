@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    background: #1a1b26;
+    font-family: "SF Mono", "Menlo", "Monaco", monospace;
+    color: #c0caf5;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 96px;
+    position: relative;
+  }
+  .accent-bar {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 10px;
+    background: linear-gradient(180deg, #7aa2f7 0%, #bb9af7 100%);
+  }
+  .brand { font-size: 92px; font-weight: 700; color: #7aa2f7; letter-spacing: -2px; }
+  .brand .cursor { color: #9ece6a; }
+  .tagline { font-size: 34px; color: #c0caf5; margin-top: 22px; line-height: 1.35; }
+  .props { margin-top: 34px; font-size: 27px; color: #565f89; }
+  .props span { color: #9ece6a; margin-right: 8px; }
+  .props .sep { color: #3b4261; margin: 0 18px; }
+  .install {
+    margin-top: 46px;
+    display: inline-block;
+    background: #16161e;
+    border: 1px solid #3b4261;
+    border-radius: 10px;
+    padding: 18px 28px;
+    font-size: 26px;
+    color: #7dcfff;
+    width: fit-content;
+  }
+  .install .dollar { color: #565f89; }
+  .footer {
+    position: absolute;
+    bottom: 36px; right: 96px;
+    font-size: 22px;
+    color: #565f89;
+  }
+</style>
+</head>
+<body>
+  <div class="accent-bar"></div>
+  <div class="brand">keel<span class="cursor">_</span></div>
+  <div class="tagline">Durable execution for TypeScript.<br>Crash at step 7, resume at step 7.</div>
+  <div class="props">
+    <span>no</span>build step<span class="sep">|</span><span>no</span>database<span class="sep">|</span><span>zero</span>runtime deps
+  </div>
+  <div class="install"><span class="dollar">$</span> npm install @sudhanshu1402/keel</div>
+  <div class="footer">github.com/sudhanshu1402/keel | MIT</div>
+</body>
+</html>

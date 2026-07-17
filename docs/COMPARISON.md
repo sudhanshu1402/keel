@@ -17,14 +17,14 @@ account, keel is built for that.
 | Runtime model | plain `ctx.step()` calls | `"use workflow"` / `"use step"` directives | SDK + workflow worker | SDK + event functions |
 | Build step required | no | yes (SWC + bundler integration) | no | no |
 | Runs in plain Node | yes | no (needs the bundler transform) | yes | yes |
-| Local observability | `npx keel dashboard`, zero config | cloud dashboard | Temporal Web (run a server) | dev server / cloud |
-| Account or login to start | no | Vercel account for the hosted side | none for OSS server | account for cloud |
+| Local observability | `npx keel dashboard`, zero config | `npx workflow web` (needs the build toolchain) | Temporal Web (run a server) | dev server / cloud |
+| Account or login to start | no | no (self-host); account for Vercel-hosted | none for OSS server | account for cloud |
 | Runtime dependencies (core) | zero | bundler + runtime | server + client libs | server + client libs |
-| Durable store | in-memory, JSON file, or SQLite | managed | Cassandra / Postgres / MySQL | managed / Postgres |
+| Durable store | in-memory, JSON file, or SQLite | Postgres / in-memory / managed | Cassandra / Postgres / MySQL | managed / Postgres |
 | Multi-worker | yes (lease + CAS) | managed | yes | managed |
 | Human-in-the-loop signals | yes (`ctx.waitForSignal`) | yes | yes | yes (`waitForEvent`) |
-| Testing infra needed | none (in-memory + mock provider) | bundler + their tooling | test server / time-skipping | dev server |
-| Hosting model | your process, anywhere Node runs | Vercel platform | self-host or Temporal Cloud | self-host or Inngest Cloud |
+| Testing infra needed | none (in-memory + mock provider) | bundler + `@workflow/vitest` | test server / time-skipping | dev server |
+| Hosting model | your process, anywhere Node runs | Vercel or self-host (Docker + Postgres) | self-host or Temporal Cloud | self-host or Inngest Cloud |
 | License | MIT | Apache-2.0 | MIT (server) | various |
 
 ## Where keel wins
@@ -39,10 +39,12 @@ a script, a server, a cron job, a test, with no transform in the path.
 **Local observability.** keel ships a dashboard that is a zero-dependency
 `node:http` server reading the same store your app writes to. `npx keel
 dashboard` and you see every run, every step, token counts, errors, and Resume
-and Send-signal buttons. The hosted engines put their observability in the
-cloud; local development is comparatively a black box. A dashboard that runs on
-your laptop against a local JSON file is structurally hard for a cloud-first
-product to match.
+and Send-signal buttons. Vercel has closed part of this gap: `npx workflow web`
+gives a local run UI. The difference is what sits under it: their local UI still
+requires the build toolchain, and its local world is a dev-mode stand-in for the
+real backend, while keel's dashboard reads the same plain JSON file or SQLite
+database your app runs on in production, with nothing to build and nothing to
+run beside your process.
 
 **Zero lock-in.** One tier, MIT, no account, no usage pricing, no
 cloud-exclusive features. The store is an interface; your run history is a JSON
