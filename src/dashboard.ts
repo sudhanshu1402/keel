@@ -257,6 +257,7 @@ const PAGE = `<!doctype html>
   .s-paused    { background:rgba(224,175,104,.15); color:var(--yellow); }
   .s-queued    { background:rgba(125,207,255,.15); color:var(--cyan); }
   .s-failed    { background:rgba(247,118,142,.15); color:var(--red); }
+  .s-poisoned  { background:rgba(247,118,142,.15); color:var(--red); }
   .s-pending   { background:rgba(86,95,137,.2); color:var(--muted); }
   .id { color:var(--cyan); }
   .step { border:1px solid var(--border); border-radius:8px; padding:10px 12px;

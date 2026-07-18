@@ -6,7 +6,9 @@ export type RunStatus =
   | 'paused'
   | 'cancelled';
 
-export type StepStatus = 'pending' | 'completed' | 'failed';
+// `poisoned`: the side effect ran but its result could not be persisted (e.g. a
+// non-JSON-safe value); the step must never re-run, so resume fails it instead.
+export type StepStatus = 'pending' | 'completed' | 'failed' | 'poisoned';
 
 export interface RunRecord {
   id: string;

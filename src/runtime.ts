@@ -17,6 +17,7 @@ import {
 import type { Provider } from './providers/types.js';
 import { defaultStepRetry, runWithRetry, type RetryPolicy } from './retry.js';
 import { MemoryStore } from './store/memory.js';
+import { assertJsonSafe } from './store/serialize.js';
 import type { RunRecord, RunStatus, StepRecord, Store } from './store/types.js';
 import type { WorkflowDefinition } from './workflow.js';
 
@@ -116,6 +117,9 @@ const defaultIdFactory = (): string => {
   return `run_${Date.now().toString(36)}_${counter.toString(36)}`;
 };
 
+const isTerminalStatus = (status: RunStatus): boolean =>
+  status === 'completed' || status === 'failed' || status === 'cancelled';
+
 /**
  * The durable execution engine. A workflow handler records every side effect
  * as a named step; on a second pass (resume after crash) completed steps return
@@ -137,6 +141,14 @@ export class Keel {
   private readonly durableTimers: boolean;
   private readonly onEvent?: (event: KeelEvent) => void;
   private readonly registry = new Map<string, WorkflowDefinition>();
+  // Per-run in-process execution mutex. Two overlapping passes for the same run
+  // (an operator retry racing a Worker, a signal delivery racing a resume, or a
+  // reclaimed lease under a shared engine) would otherwise both clear a step's
+  // "already completed?" memo before either persists it, running the side
+  // effect twice. Serializing execute/resume per run within the process closes
+  // that window; the cross-process lease-expiry case is documented in
+  // docs/KNOWN_ISSUES.md and covered by `idempotencyKey`.
+  private readonly runChain = new Map<string, Promise<unknown>>();
 
   constructor(opts: KeelOptions = {}) {
     this.store = opts.store ?? new MemoryStore();
@@ -151,6 +163,56 @@ export class Keel {
   /** The store backing this engine, exposed for supervisors and tooling. */
   get backingStore(): Store {
     return this.store;
+  }
+
+  /**
+   * Run `fn` after any in-flight pass for the same run has settled, so two
+   * overlapping executions of one run never interleave inside the process. Each
+   * run keeps a tail promise; the next caller chains onto it. The tail swallows
+   * rejections so one failed pass cannot reject a later caller's turn, and is
+   * cleared once no one is waiting.
+   */
+  private serializeRun<T>(runId: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.runChain.get(runId) ?? Promise.resolve();
+    const result = prev.then(fn, fn);
+    const tail = result.then(
+      () => {},
+      () => {},
+    );
+    this.runChain.set(runId, tail);
+    void tail.then(() => {
+      if (this.runChain.get(runId) === tail) this.runChain.delete(runId);
+    });
+    return result;
+  }
+
+  private toRunResult<O>(runId: string, run: RunRecord): RunResult<O> {
+    return {
+      runId,
+      status: run.status,
+      ...(run.output !== undefined ? { output: run.output as O } : {}),
+      ...(run.error ? { error: run.error } : {}),
+    };
+  }
+
+  /**
+   * Commit a run's terminal/paused state, but only if a concurrent owner has not
+   * already moved it to a terminal state. A pass whose lease was reclaimed (or
+   * that raced a cancel) is a zombie; letting it write would clobber the
+   * authoritative result the new owner recorded. When the run is already
+   * terminal, return that state instead of overwriting it.
+   */
+  private async finalizeRun<O>(
+    runId: string,
+    patch: Partial<RunRecord> & { status: RunStatus },
+    result: RunResult<O>,
+  ): Promise<RunResult<O>> {
+    const latest = await this.store.getRun(runId);
+    if (latest && isTerminalStatus(latest.status)) {
+      return this.toRunResult<O>(runId, latest);
+    }
+    await this.store.updateRun(runId, { ...patch, updatedAt: this.now() });
+    return result;
   }
 
   /**
@@ -199,7 +261,7 @@ export class Keel {
       updatedAt: ts,
     };
     await this.store.createRun(run);
-    return this.execute(def, id, input);
+    return this.serializeRun(id, () => this.execute(def, id, input));
   }
 
   /**
@@ -250,6 +312,10 @@ export class Keel {
 
   /** Resume a run by id. The workflow must have been registered (run() does so). */
   async resume<O = unknown>(runId: string): Promise<RunResult<O>> {
+    return this.serializeRun(runId, () => this.resumeInner<O>(runId));
+  }
+
+  private async resumeInner<O = unknown>(runId: string): Promise<RunResult<O>> {
     const run = await this.store.getRun(runId);
     if (!run) throw new Error(`run ${runId} not found`);
     // Terminal states never re-execute. A completed run replays its recorded
@@ -295,43 +361,39 @@ export class Keel {
     const ctx = this.makeContext(runId, priorSteps);
     try {
       const output = await def.handler(ctx, input);
-      // A cancel that lands while the final pass is running must win over the
-      // completion write, or the run would silently complete despite cancel.
-      const latest = await this.store.getRun(runId);
-      if (latest && latest.status === 'cancelled') {
-        return { runId, status: 'cancelled' };
-      }
-      await this.store.updateRun(runId, {
-        status: 'completed',
-        output,
-        updatedAt: this.now(),
-      });
-      return { runId, status: 'completed', output };
+      // A cancel that lands while the final pass is running — or a new owner that
+      // finalized this run after reclaiming an expired lease — must win over the
+      // completion write. finalizeRun defers to any terminal state already set.
+      return this.finalizeRun<O>(
+        runId,
+        { status: 'completed', output },
+        { runId, status: 'completed', output },
+      );
     } catch (err) {
       if (err instanceof PausedError) {
-        await this.store.updateRun(runId, {
-          status: 'paused',
-          updatedAt: this.now(),
-        });
-        return { runId, status: 'paused' };
+        return this.finalizeRun<O>(
+          runId,
+          { status: 'paused' },
+          { runId, status: 'paused' },
+        );
       }
       if (err instanceof CancelledError) {
-        await this.store.updateRun(runId, {
-          status: 'cancelled',
-          updatedAt: this.now(),
-        });
-        return { runId, status: 'cancelled' };
+        return this.finalizeRun<O>(
+          runId,
+          { status: 'cancelled' },
+          { runId, status: 'cancelled' },
+        );
       }
       const message = err instanceof Error ? err.message : String(err);
-      await this.store.updateRun(runId, {
-        status: 'failed',
-        error: message,
-        updatedAt: this.now(),
-      });
+      const result = await this.finalizeRun<O>(
+        runId,
+        { status: 'failed', error: message },
+        { runId, status: 'failed', error: message },
+      );
       // Divergence is a programming error (the workflow code changed under a
       // live run), not a workflow-level failure. Surface it to the caller.
       if (err instanceof DivergenceError) throw err;
-      return { runId, status: 'failed', error: message };
+      return result;
     }
   }
 
@@ -397,6 +459,16 @@ export class Keel {
       if (existing && existing.status === 'completed') {
         return existing.result as T;
       }
+      if (existing && existing.status === 'poisoned') {
+        // The side effect already ran once, but its result could not be
+        // persisted (e.g. a non-JSON-safe value). Re-running would repeat the
+        // side effect on every resume and never heal, so fail deterministically
+        // without running it again.
+        throw new StepFailedError(
+          name,
+          new Error(existing.error ?? 'step result could not be persisted'),
+        );
+      }
       const policy: RetryPolicy = {
         ...defaultStepRetry,
         ...(opts?.retry ?? {}),
@@ -461,16 +533,61 @@ export class Keel {
       // cancel wins: do not commit this step as completed.
       await checkCancelled();
       const finishedAt = now();
-      await store.saveStep({
-        runId,
-        name,
-        index,
-        status: 'completed',
-        attempts,
-        result,
-        startedAt,
-        finishedAt,
-      });
+      try {
+        await store.saveStep({
+          runId,
+          name,
+          index,
+          status: 'completed',
+          attempts,
+          result,
+          startedAt,
+          finishedAt,
+        });
+      } catch (persistErr) {
+        // Separate a deterministic persistence failure — the result itself is
+        // not storable (a Date/Map/bigint), so re-running can never heal it —
+        // from a transient one (a crash or power loss before the write landed,
+        // which is the honest at-least-once path that re-runs on resume). Only
+        // the former is poisoned; a transient failure re-throws so resume
+        // re-runs the step.
+        let deterministic = false;
+        try {
+          assertJsonSafe(result, `step ${name} result`);
+        } catch {
+          deterministic = true;
+        }
+        if (!deterministic) throw persistErr;
+        // The side effect succeeded but its result can never be durably stored.
+        // Recording nothing would let the step re-run its side effect on every
+        // resume, forever. Persist a poison marker (without the offending
+        // result) so a later resume refuses to re-run it, then fail
+        // non-retryably.
+        const message =
+          persistErr instanceof Error ? persistErr.message : String(persistErr);
+        await store.saveStep({
+          runId,
+          name,
+          index,
+          status: 'poisoned',
+          attempts,
+          error: message,
+          startedAt,
+          finishedAt,
+        });
+        emit({
+          type: 'step:fail',
+          runId,
+          step: name,
+          index,
+          kind: 'step',
+          attempts,
+          at: finishedAt,
+          durationMs: finishedAt - startedAt,
+          error: message,
+        });
+        throw new StepFailedError(name, persistErr);
+      }
       emit({
         type: 'step:complete',
         runId,
