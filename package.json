@@ -1,6 +1,6 @@
 {
   "name": "@sudhanshu1402/keel",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Durable execution for TypeScript AI agents. Local-first, crash-proof, zero-cloud.",
   "type": "module",
   "main": "dist/index.js",
@@ -31,7 +31,8 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc",

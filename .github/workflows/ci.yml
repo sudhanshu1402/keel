@@ -22,4 +22,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - name: Tests with node:sqlite store
+        if: matrix.node-version == '22.x'
+        run: npm run test:sqlite
       - run: npm run build
