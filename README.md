@@ -1,4 +1,10 @@
-# keel
+<h1>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sudhanshu1402/keel/main/assets/banner-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/sudhanshu1402/keel/main/assets/banner-light.svg" />
+  <img src="https://raw.githubusercontent.com/sudhanshu1402/keel/main/assets/banner-dark.svg" width="100%" alt="keel: durable execution for TypeScript, no server and no database. on npm, zero runtime dependencies, node >= 20. The failure it exists for: the process dies after the charge. restart replays from disk. charged once." />
+</picture>
+</h1>
 
 [![CI](https://github.com/sudhanshu1402/keel/actions/workflows/ci.yml/badge.svg)](https://github.com/sudhanshu1402/keel/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/%40sudhanshu1402%2Fkeel.svg)](https://www.npmjs.com/package/@sudhanshu1402/keel) [![npm downloads](https://img.shields.io/npm/dm/%40sudhanshu1402%2Fkeel.svg)](https://www.npmjs.com/package/@sudhanshu1402/keel) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
 
