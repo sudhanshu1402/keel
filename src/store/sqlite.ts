@@ -232,33 +232,54 @@ export class SqliteStore implements ConcurrentStore {
     return row ? this.rowToRun(row) : undefined;
   }
 
-  async updateRun(id: string, patch: Partial<RunRecord>): Promise<void> {
-    const existing = await this.getRun(id);
-    if (!existing) throw new Error(`run ${id} not found`);
-    if (patch.output !== undefined) assertJsonSafe(patch.output, `run ${id} output`);
-    const next = { ...existing, ...patch };
-    this.writeRun(next);
-  }
+  // Columns updateRun is allowed to patch, and how each value is bound. JSON
+  // columns need toJson; nullable columns need the ?? null.
+  private static readonly RUN_PATCH_COLUMNS: {
+    [K in keyof RunRecord]?: (value: RunRecord[K]) => unknown;
+  } = {
+    workflowName: (v) => v,
+    status: (v) => v,
+    input: (v) => toJson(v),
+    output: (v) => toJson(v),
+    error: (v) => v ?? null,
+    version: (v) => v ?? 0,
+    workflowVersion: (v) => v ?? null,
+    leaseOwner: (v) => v ?? null,
+    leaseExpiresAt: (v) => v ?? null,
+    createdAt: (v) => v,
+    updatedAt: (v) => v,
+  };
 
-  private writeRun(run: RunRecord): void {
-    this.db
-      .prepare(
-        `UPDATE runs SET workflowName=?, status=?, input=?, output=?, error=?, version=?, workflowVersion=?, leaseOwner=?, leaseExpiresAt=?, createdAt=?, updatedAt=? WHERE id=?`,
-      )
-      .run(
-        run.workflowName,
-        run.status,
-        toJson(run.input),
-        toJson(run.output),
-        run.error ?? null,
-        run.version ?? 0,
-        run.workflowVersion ?? null,
-        run.leaseOwner ?? null,
-        run.leaseExpiresAt ?? null,
-        run.createdAt,
-        run.updatedAt,
-        run.id,
-      );
+  /**
+   * Patch only the columns present in `patch`, in one statement. A
+   * read-modify-write of the whole row would clobber a concurrent `claimRun`:
+   * the write-back restores the stale `leaseOwner`, `leaseExpiresAt` and
+   * `version`, letting a third worker claim a run that is mid-execution.
+   */
+  async updateRun(id: string, patch: Partial<RunRecord>): Promise<void> {
+    if (patch.output !== undefined) assertJsonSafe(patch.output, `run ${id} output`);
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    for (const [key, bind] of Object.entries(SqliteStore.RUN_PATCH_COLUMNS)) {
+      if (!(key in patch)) continue;
+      sets.push(`${key}=?`);
+      values.push((bind as (v: unknown) => unknown)((patch as Record<string, unknown>)[key]));
+    }
+    if (sets.length === 0) {
+      // Nothing to write, but the caller still expects a missing run to throw.
+      const exists = this.db.prepare('SELECT 1 FROM runs WHERE id = ?').get(id);
+      if (!exists) throw new Error(`run ${id} not found`);
+      return;
+    }
+    // Every write moves the version, so a holder of a version read before this
+    // update loses its updateRunCAS instead of silently overwriting this row.
+    // A patch that sets `version` explicitly keeps its own value.
+    if (!('version' in patch)) sets.push('version = version + 1');
+    values.push(id);
+    const res = this.db
+      .prepare(`UPDATE runs SET ${sets.join(', ')} WHERE id=?`)
+      .run(...(values as never[]));
+    if (res.changes === 0) throw new Error(`run ${id} not found`);
   }
 
   async getStep(runId: string, name: string): Promise<StepRecord | undefined> {

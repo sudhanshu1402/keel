@@ -42,7 +42,11 @@ export class MemoryStore implements ConcurrentStore {
     const existing = this.runs.get(id);
     if (!existing) throw new Error(`run ${id} not found`);
     if (patch.output !== undefined) assertJsonSafe(patch.output, `run ${id} output`);
-    this.runs.set(id, clone({ ...existing, ...patch }));
+    // Matches SqliteStore: any write moves the version, so a stale
+    // updateRunCAS fails rather than overwriting this one.
+    const version =
+      'version' in patch ? patch.version : (existing.version ?? 0) + 1;
+    this.runs.set(id, clone({ ...existing, ...patch, version }));
   }
 
   async getStep(runId: string, name: string): Promise<StepRecord | undefined> {

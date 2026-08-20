@@ -39,7 +39,9 @@ a script, a server, a cron job, a test, with no transform in the path.
 **Local observability.** keel ships a dashboard that is a zero-dependency
 `node:http` server reading the same store your app writes to. `npx keel
 dashboard` and you see every run, every step, token counts, errors, and Resume
-and Send-signal buttons. Vercel has closed part of this gap: `npx workflow web`
+and Send-signal buttons. Resume needs your registered workflows, so it works when you call
+`startDashboard({ store, keel })` from inside your app, not from the bare CLI.
+Vercel has closed part of this gap: `npx workflow web`
 gives a local run UI. The difference is what sits under it: their local UI still
 requires the build toolchain, and its local world is a dev-mode stand-in for the
 real backend, while keel's dashboard reads the same plain JSON file or SQLite

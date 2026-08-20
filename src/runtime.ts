@@ -511,7 +511,10 @@ export class Keel {
           name,
           index,
           status: 'failed',
-          attempts: policy.maxAttempts,
+          // The real counter, not policy.maxAttempts. A non-retryable failure
+          // (the default `retryable` excludes TimeoutError) runs once, and
+          // persisting it as 3 attempts lies to anyone reading the store.
+          attempts: attemptNo,
           error: message,
           startedAt,
           finishedAt: failedAt,
@@ -522,7 +525,7 @@ export class Keel {
           step: name,
           index,
           kind: 'step',
-          attempts: policy.maxAttempts,
+          attempts: attemptNo,
           at: failedAt,
           durationMs: failedAt - startedAt,
           error: message,
@@ -633,9 +636,16 @@ export class Keel {
           const childName = `${name}#${i}`;
           return { childName, fn, index: claimIndex(childName) };
         });
-        return Promise.all(
+        // allSettled, not all. Promise.all rejects on the first failure, which
+        // finalizes the run `failed` while the other children are still
+        // executing — they then write `completed` steps into a terminal run.
+        // Wait for every child, then rethrow the first failure in array order.
+        const settled = await Promise.allSettled(
           planned.map((p) => executeStep(p.childName, p.index, p.fn, opts)),
         );
+        const failure = settled.find((r) => r.status === 'rejected');
+        if (failure) throw (failure as PromiseRejectedResult).reason;
+        return settled.map((r) => (r as PromiseFulfilledResult<T>).value);
       },
 
       async sleep(name: string, ms: number): Promise<void> {

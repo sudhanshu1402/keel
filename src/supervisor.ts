@@ -16,6 +16,13 @@ export interface SupervisorOptions {
    * twice. Defaults to `leaseMs / 3`.
    */
   renewMs?: number;
+  /**
+   * Where background failures go. The poll loop and the lease heartbeat are
+   * fire-and-forget, so without a sink a single store rejection would surface as
+   * an unhandled rejection and kill the host process. Defaults to
+   * `console.error`.
+   */
+  onError?: (err: unknown) => void;
 }
 
 let supervisorCounter = 0;
@@ -41,6 +48,7 @@ export class Supervisor {
   private readonly workerId: string;
   private readonly leaseMs: number;
   private readonly renewMs: number;
+  private readonly onError: (err: unknown) => void;
 
   constructor(
     private readonly keel: Keel,
@@ -53,13 +61,14 @@ export class Supervisor {
     this.workerId = opts.workerId ?? `supervisor_${supervisorCounter}`;
     this.leaseMs = opts.leaseMs ?? 30_000;
     this.renewMs = Math.max(1, opts.renewMs ?? Math.floor(this.leaseMs / 3));
+    this.onError = opts.onError ?? ((err) => console.error('[keel supervisor]', err));
   }
 
   /** Begin polling on an interval. The timer does not keep the process alive. */
   start(): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
-      void this.tick();
+      this.tick().catch(this.onError);
     }, this.pollMs);
     this.timer.unref?.();
   }
@@ -106,12 +115,11 @@ export class Supervisor {
             let renewing = true;
             const heartbeat = setInterval(() => {
               if (!renewing) return;
-              void store.claimRun(
-                runId,
-                this.workerId,
-                this.leaseMs,
-                this.now(),
-              );
+              // A failed renewal only means the lease lapses and another
+              // resumer may reclaim the run. Recoverable; a crash is not.
+              store
+                .claimRun(runId, this.workerId, this.leaseMs, this.now())
+                .catch(this.onError);
             }, this.renewMs);
             heartbeat.unref?.();
             try {

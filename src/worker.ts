@@ -18,6 +18,13 @@ export interface WorkerOptions {
   pollMs?: number;
   /** Override the clock (tests inject a controllable now). */
   now?: () => number;
+  /**
+   * Where background failures go. The poll loop and the lease heartbeat are
+   * fire-and-forget, so without a sink a single store rejection would surface as
+   * an unhandled rejection and kill the host process. Defaults to
+   * `console.error`.
+   */
+  onError?: (err: unknown) => void;
 }
 
 let workerCounter = 0;
@@ -38,6 +45,7 @@ export class Worker {
   private readonly renewMs: number;
   private readonly pollMs: number;
   private readonly now: () => number;
+  private readonly onError: (err: unknown) => void;
 
   constructor(
     private readonly keel: Keel,
@@ -51,13 +59,14 @@ export class Worker {
     this.renewMs = Math.max(1, opts.renewMs ?? Math.floor(this.leaseMs / 3));
     this.pollMs = opts.pollMs ?? 100;
     this.now = opts.now ?? (() => Date.now());
+    this.onError = opts.onError ?? ((err) => console.error('[keel worker]', err));
   }
 
   /** Begin polling on an interval. The timer does not keep the process alive. */
   start(): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
-      void this.tick();
+      this.tick().catch(this.onError);
     }, this.pollMs);
     this.timer.unref?.();
   }
@@ -131,7 +140,11 @@ export class Worker {
     let renewing = true;
     const heartbeat = setInterval(() => {
       if (!renewing) return;
-      void this.store.claimRun(runId, this.workerId, this.leaseMs, this.now());
+      // A failed renewal only means the lease lapses and another worker may
+      // reclaim the run. That is recoverable; crashing the process is not.
+      this.store
+        .claimRun(runId, this.workerId, this.leaseMs, this.now())
+        .catch(this.onError);
     }, this.renewMs);
     heartbeat.unref?.();
     try {

@@ -105,3 +105,31 @@ describe('multi-worker execution', () => {
     }
   });
 });
+
+// The poll loop is fire-and-forget. Before onError existed it was `void
+// this.tick()`, so one store rejection became an unhandled rejection and took
+// down the host process of a library sold as crash-proof.
+describe('background failures reach onError instead of the process', () => {
+  it('routes a store failure in the poll loop to onError', async () => {
+    const store = new MemoryStore();
+    const boom = new Error('store unavailable');
+    store.listRuns = () => Promise.reject(boom);
+    const keel = new Keel({ store, sleepFn: instant });
+
+    const seen: unknown[] = [];
+    const worker = new Worker(keel, store, {
+      pollMs: 1,
+      onError: (err) => seen.push(err),
+    });
+
+    // tick() itself still rejects; start()'s interval must not.
+    await expect(worker.tick()).rejects.toThrow('store unavailable');
+
+    worker.start();
+    await new Promise((r) => setTimeout(r, 30));
+    worker.stop();
+
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen[0]).toBe(boom);
+  });
+});

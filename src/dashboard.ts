@@ -186,7 +186,7 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 /**
  * Build and start the dashboard, resolving once it is listening.
  *
- * The dashboard has no authentication and exposes Resume/Cancel/Signal
+ * The dashboard has no authentication and exposes Resume and Signal
  * controls, so it binds to loopback (`127.0.0.1`) by default. Binding to any
  * other host (e.g. `0.0.0.0`) exposes those controls to the network; that is
  * refused unless you pass `allowRemote: true` to acknowledge the risk and put
@@ -199,11 +199,11 @@ export function startDashboard(
   if (!LOOPBACK_HOSTS.has(host)) {
     if (!opts.allowRemote) {
       throw new Error(
-        `refusing to bind keel dashboard to non-loopback host "${host}": it has no authentication and would expose Resume/Cancel/Signal to the network. Pass allowRemote:true to override, and put it behind your own auth or proxy.`,
+        `refusing to bind keel dashboard to non-loopback host "${host}": it has no authentication and would expose Resume and Signal to the network. Pass allowRemote:true to override, and put it behind your own auth or proxy.`,
       );
     }
     process.emitWarning(
-      `keel dashboard bound to "${host}" with no authentication: anyone who can reach it can resume, cancel, or signal runs.`,
+      `keel dashboard bound to "${host}" with no authentication: anyone who can reach it can resume or signal runs.`,
     );
   }
   const server = createDashboard(opts);

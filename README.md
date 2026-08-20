@@ -69,6 +69,8 @@ npx keel dashboard --store keel-data/orders.json
 
 A zero-dependency `node:http` server reading the same store your app writes: run list, per-run step timelines, token counts, errors, and Resume and Send-signal buttons. No config, no account.
 
+Started from the CLI it has no engine in the process, so a signal is only stored for a running Worker to pick up, and Resume returns an error because executing workflow code needs your registered workflows. Call `startDashboard({ store, keel })` from inside your app to get a Resume button that actually runs. Cancelling is `keel cancel <runId>`; the dashboard has no cancel route.
+
 ## Why keel
 
 Temporal, Inngest, DBOS, and Vercel's Workflow SDK all do durable execution, and all of them bring a server, a control plane, a database, or a build-time transform. keel makes the opposite trade: a few hundred lines of dependency-free TypeScript, `package.json` with no `dependencies` field at all.
@@ -105,7 +107,7 @@ What keel does not promise is exactly-once side effects for free. No durable eng
 
 ## Status
 
-v1.0, tested on Node 20 and 22. keel targets a long-lived Node process; edge and serverless runtimes are out of scope by design.
+v1.0, tested in CI on Node 20 and 22. The `SqliteStore` suite is Node 22 only, because `node:sqlite` needs 22.5+ with `--experimental-sqlite`; the engine, `MemoryStore` and `FileStore` have no such requirement and run on 20. keel targets a long-lived Node process; edge and serverless runtimes are out of scope by design.
 
 ## License
 

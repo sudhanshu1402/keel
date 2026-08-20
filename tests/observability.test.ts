@@ -63,6 +63,33 @@ describe('onEvent observability hook', () => {
     expect(fail?.error).toContain('nope');
   });
 
+  // The failure write used to hardcode policy.maxAttempts, so a step that ran
+  // once and failed non-retryably was persisted and reported as 3 attempts.
+  it('records the attempts actually made, not the policy maximum', async () => {
+    const events: KeelEvent[] = [];
+    const store = new MemoryStore();
+    const keel = new Keel({ store, sleepFn: instant, onEvent: (e) => events.push(e) });
+    let ran = 0;
+    const wf = defineWorkflow('obs-attempts', async (ctx) =>
+      ctx.step(
+        'once',
+        () => {
+          ran += 1;
+          throw new Error('fatal');
+        },
+        { retry: { maxAttempts: 3, retryable: () => false } },
+      ),
+    );
+    const r = await keel.run(wf, {});
+    expect(r.status).toBe('failed');
+    expect(ran).toBe(1);
+
+    const fail = events.find((e) => e.type === 'step:fail');
+    expect(fail?.attempts).toBe(1);
+    const steps = await store.listSteps(r.runId);
+    expect(steps.find((s) => s.name === 'once')?.attempts).toBe(1);
+  });
+
   it('never lets a throwing callback break the run', async () => {
     const keel = new Keel({
       sleepFn: instant,

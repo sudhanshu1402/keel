@@ -77,7 +77,18 @@ export class FileStore implements Store {
     // old file intact or a fully-flushed new one, never a torn write.
     const fd = openSync(tmp, 'w');
     try {
-      writeSync(fd, data);
+      // writeSync can write fewer bytes than asked for on a large buffer, and
+      // ignoring the return value would persist a truncated file that the next
+      // load() quarantines as corrupt. Loop until every byte is out.
+      const buf = Buffer.from(data, 'utf8');
+      let written = 0;
+      while (written < buf.length) {
+        const n = writeSync(fd, buf, written, buf.length - written);
+        if (n <= 0) {
+          throw new Error(`keel store write to ${tmp} stalled at ${written}/${buf.length} bytes`);
+        }
+        written += n;
+      }
       fsyncSync(fd);
     } finally {
       closeSync(fd);
@@ -115,7 +126,11 @@ export class FileStore implements Store {
     const existing = this.db.runs[id];
     if (!existing) throw new Error(`run ${id} not found`);
     if (patch.output !== undefined) assertJsonSafe(patch.output, `run ${id} output`);
-    this.db.runs[id] = { ...existing, ...patch };
+    // Same version rule as MemoryStore and SqliteStore, so a run record reads
+    // the same whichever store wrote it.
+    const version =
+      'version' in patch ? patch.version : (existing.version ?? 0) + 1;
+    this.db.runs[id] = { ...existing, ...patch, version };
     this.flush();
   }
 

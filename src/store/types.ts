@@ -118,6 +118,11 @@ export interface ConcurrentStore extends Store {
   /**
    * Apply a patch only if the run's version still matches `expectedVersion`,
    * bumping the version on success. Returns false on a version mismatch.
+   *
+   * The engine itself serialises on leases (`claimRun`) and does not call this;
+   * it is here for your own code, when you read a run, decide something from
+   * it, and want the write to lose if anything else touched the run meanwhile.
+   * Every other write path bumps `version`, so a stale CAS always fails.
    */
   updateRunCAS(
     id: string,
