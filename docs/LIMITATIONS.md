@@ -71,7 +71,7 @@ an edge-native execution model. This is a deliberate trade, not a TODO.
 `ctx.all(name, [fn, ...])` runs sibling steps concurrently within one run, with
 deterministic replay. What keel does **not** have is first-class child workflows:
 spawning a separate run from inside a workflow and awaiting it as a unit, with
-its own durable identity and independent ret/resume. You can approximate it by
+its own durable identity and independent retry/resume. You can approximate it by
 calling `keel.run` or `keel.enqueue` from inside a `ctx.step` (the child's id is
 then recorded as that step's result and survives replay), but there is no
 built-in parent/child tree, no automatic cancellation propagation, and no

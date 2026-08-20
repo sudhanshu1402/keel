@@ -59,6 +59,46 @@ describe('ctx.all', () => {
     // The two children replayed from the store; their fns did not run again.
     expect(runs).toBe(2);
   });
+
+  // Promise.all rejected on the first failure, so the run was finalized `failed`
+  // while the slower sibling was still executing — it then wrote a `completed`
+  // step into an already-terminal run.
+  it('waits for every sibling before failing the run', async () => {
+    const store = new MemoryStore();
+    const keel = new Keel({ store, sleepFn: instant });
+    let slowFinished = false;
+    const wf = defineWorkflow<unknown, string[]>('fanout-fail', async (ctx) =>
+      ctx.all(
+        'work',
+        [
+          () => {
+            throw new Error('fast failure');
+          },
+          async () => {
+            await new Promise((r) => setTimeout(r, 30));
+            slowFinished = true;
+            return 'slow';
+          },
+        ],
+        { retry: { maxAttempts: 1 } },
+      ),
+    );
+
+    const r = await keel.run(wf, {});
+    expect(r.status).toBe('failed');
+    expect(r.error).toContain('fast failure');
+    // The slow sibling finished before the run was finalized, not after.
+    expect(slowFinished).toBe(true);
+
+    const steps = await store.listSteps(r.runId);
+    const slow = steps.find((s) => s.name === 'work#1');
+    expect(slow?.status).toBe('completed');
+    // No step landed after the run reached its terminal state.
+    const run = await store.getRun(r.runId);
+    for (const step of steps) {
+      expect(step.finishedAt ?? 0).toBeLessThanOrEqual(run?.updatedAt ?? 0);
+    }
+  });
 });
 
 describe('durable now / random / uuid', () => {

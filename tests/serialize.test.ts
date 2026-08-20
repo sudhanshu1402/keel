@@ -38,6 +38,27 @@ describe('assertJsonSafe', () => {
       /order\.total/,
     );
   });
+
+  // MemoryStore kept NaN and Infinity; FileStore and SqliteStore turned them
+  // into null. Rejecting them here is what keeps the stores interchangeable.
+  it('rejects non-finite numbers', () => {
+    expect(() => assertJsonSafe(NaN, 'result')).toThrow(/NaN/);
+    expect(() => assertJsonSafe(Infinity, 'result')).toThrow(/Infinity/);
+    expect(() => assertJsonSafe({ score: -Infinity }, 'result')).toThrow(/score/);
+  });
+
+  it('rejects a cycle with a clear error, not a stack overflow', () => {
+    const cyclic: Record<string, unknown> = { name: 'a' };
+    cyclic.self = cyclic;
+    expect(() => assertJsonSafe(cyclic, 'result')).toThrow(TypeError);
+    expect(() => assertJsonSafe(cyclic, 'result')).toThrow(/circular/);
+  });
+
+  it('still accepts the same object referenced twice side by side', () => {
+    const shared = { id: 1 };
+    expect(() => assertJsonSafe({ a: shared, b: shared }, 'result')).not.toThrow();
+    expect(() => assertJsonSafe([shared, shared], 'result')).not.toThrow();
+  });
 });
 
 describe('FileStore corrupt-file handling', () => {

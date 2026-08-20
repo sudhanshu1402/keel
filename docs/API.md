@@ -25,14 +25,20 @@
 
 ## Runtime
 
-- `new Supervisor(keel, store, { pollMs? })` - wakes sleeping and signal-ready runs.
-- `new Worker(keel, store, { concurrency?, leaseMs?, pollMs? })` - multi-worker executor over a `ConcurrentStore`.
+- `new Supervisor(keel, store, { pollMs?, now?, workerId?, leaseMs?, renewMs?, onError? })` - wakes sleeping and signal-ready runs.
+- `new Worker(keel, store, { workerId?, concurrency?, leaseMs?, renewMs?, pollMs?, now?, onError? })` - multi-worker executor over a `ConcurrentStore`.
+- `onError` on both takes background failures from the poll loop and the lease heartbeat. Those are fire-and-forget, so without it a store rejection becomes an unhandled rejection. Defaults to `console.error`.
 - `createTestKeel(opts?)` - in-memory deterministic engine for tests.
-- `startDashboard({ store, port? })` / `runCli(argv)` - dashboard and CLI entry points.
+- `startDashboard({ store, keel?, port?, host?, allowRemote? })` - resolves to `{ server, port }`. Without `keel` the dashboard is read-only plus store writes: Resume reports that no engine is registered and a signal is only stored. Binds to `127.0.0.1`; a non-loopback `host` throws unless `allowRemote: true`, because it has no auth.
+- `createDashboard(opts)` - the same server, unstarted, if you want to own `listen`.
+- `runCli(argv, io?)` - CLI entry point. Resolves to the process exit code and closes any store it opened.
 
 ## Stores and providers
 
 - Stores: `MemoryStore`, `FileStore`, `SqliteStore` (imported from `@sudhanshu1402/keel/sqlite`).
+- `Store`: `createRun`, `getRun`, `updateRun`, `getStep`, `saveStep`, `listRuns`, `listSteps`, `getReadySteps`, `saveSignal`, `getSignal`. Every write path bumps the run's `version`.
+- `ConcurrentStore` adds `claimRun`, `releaseClaim`, `updateRunCAS`. `isConcurrentStore(store)` narrows to it. `MemoryStore` implements it for in-process fan-out, `SqliteStore` for cross-process workers. The engine serialises on leases, so it never calls `updateRunCAS`; that is for your own read-decide-write code.
+- `SqliteStore.close()` checkpoints the WAL and releases the handle. Call it on shutdown; the other two stores need no close.
 - Providers: `OllamaProvider`, `MockProvider`.
 
 ## Errors
@@ -40,6 +46,9 @@
 - `DivergenceError` - steps reordered or renamed between runs.
 - `WorkflowVersionError` - resuming under a changed `version`.
 - `CancelledError` - thrown into a run that was cancelled.
+- `StepFailedError` - a step exhausted its retries, or was already poisoned. Carries the underlying error.
+- `TimeoutError` - a step passed its `timeoutMs`. Not retried by default, because the side effect may still be running.
+- `PausedError` - internal control flow for `waitForSignal` and durable sleep; it suspends a run rather than failing it.
 
 ## CLI
 

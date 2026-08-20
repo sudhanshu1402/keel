@@ -59,6 +59,15 @@ describe('runWithRetry', () => {
     expect(n).toBe(1);
   });
 
+  // maxAttempts <= 0 used to skip the loop and rethrow a literal `undefined`.
+  it('rejects a maxAttempts below 1 instead of throwing undefined', async () => {
+    for (const maxAttempts of [0, -1, 1.5]) {
+      await expect(
+        runWithRetry(() => 'x', { ...policy, maxAttempts }, { sleep: instant }),
+      ).rejects.toThrow(/maxAttempts/);
+    }
+  });
+
   it('succeeds on the first attempt without sleeping', async () => {
     let slept = 0;
     const { attempts } = await runWithRetry(() => 'fast', policy, {

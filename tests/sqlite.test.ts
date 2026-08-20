@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Keel, defineWorkflow } from '../src/index.js';
+import { Keel, defineWorkflow, runCli } from '../src/index.js';
 import { SqliteStore } from '../src/store/sqlite.js';
 
 // node:sqlite needs Node 22.5+ with --experimental-sqlite, or Node 24+. When it
@@ -132,6 +132,48 @@ describe.skipIf(!sqliteAvailable)('SqliteStore', () => {
     }
   });
 
+  // updateRun writes only the columns in its patch. It used to round-trip the
+  // whole row (getRun, spread, write every column back), which left a window for
+  // a claimRun from ANOTHER PROCESS to be reverted between the read and the
+  // write. That interleaving cannot be staged from one process — node:sqlite is
+  // synchronous, so nothing runs between the read and the write here — so this
+  // test pins the column-scoping behaviour, not the cross-process race.
+  it('updateRun patches only its own columns and leaves the lease intact', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'keel-sqlite-'));
+    const store = new SqliteStore(join(dir, 'db.sqlite'));
+    try {
+      await store.createRun({
+        id: 'r1',
+        workflowName: 'w',
+        status: 'queued',
+        input: {},
+        version: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      });
+
+      expect(await store.claimRun('r1', 'w1', 1000, 1000)).toBe(true);
+      // A patch that knows nothing about the lease must not undo it.
+      await store.updateRun('r1', { status: 'running', updatedAt: 1100 });
+
+      const after = await store.getRun('r1');
+      expect(after?.status).toBe('running');
+      expect(after?.leaseOwner).toBe('w1');
+      expect(after?.leaseExpiresAt).toBe(2000);
+      // createRun 0, claimRun 1, this updateRun 2: every write moves it.
+      expect(after?.version).toBe(2);
+      // The lease still holds, so nobody else can claim the run.
+      expect(await store.claimRun('r1', 'w2', 1000, 1200)).toBe(false);
+
+      await expect(store.updateRun('missing', { status: 'failed' })).rejects.toThrow(
+        /not found/,
+      );
+    } finally {
+      store.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('drives crash recovery through the engine', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'keel-sqlite-'));
     const file = join(dir, 'db.sqlite');
@@ -163,6 +205,37 @@ describe.skipIf(!sqliteAvailable)('SqliteStore', () => {
       expect(charges).toBe(1);
       expect(r2.output).toEqual({ shipped: true, amount: 100 });
       store2.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // runCli used to open a SqliteStore and never close it, so every in-process
+  // call leaked a handle and left the WAL un-checkpointed. sqlite removes the
+  // -wal sidecar when the last connection closes, so its absence is the proof.
+  it('runCli closes the sqlite store it opened', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'keel-cli-sqlite-'));
+    const file = join(dir, 'db.sqlite');
+    try {
+      const seed = new SqliteStore(file);
+      await seed.createRun({
+        id: 'r1',
+        workflowName: 'w',
+        status: 'paused',
+        input: {},
+        version: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      seed.close();
+
+      const out: string[] = [];
+      const code = await runCli(['resume', 'r1', '--db', file], {
+        out: (s) => out.push(s),
+        err: (s) => out.push(s),
+      });
+      expect(code).toBe(0);
+      expect(existsSync(`${file}-wal`)).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

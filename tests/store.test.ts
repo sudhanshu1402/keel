@@ -29,6 +29,26 @@ describe('MemoryStore', () => {
     expect((await s.getRun('r1'))?.status).toBe('completed');
   });
 
+  // updateRun left version untouched, so a CAS holding a version read before
+  // that update still succeeded and overwrote it.
+  it('bumps version on updateRun so a stale CAS loses', async () => {
+    const s = new MemoryStore();
+    await s.createRun({
+      id: 'r1',
+      workflowName: 'w',
+      status: 'queued',
+      input: {},
+      version: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const stale = (await s.getRun('r1'))?.version ?? 0;
+    await s.updateRun('r1', { status: 'running' });
+    expect((await s.getRun('r1'))?.version).toBe(stale + 1);
+    expect(await s.updateRunCAS('r1', { status: 'cancelled' }, stale)).toBe(false);
+    expect((await s.getRun('r1'))?.status).toBe('running');
+  });
+
   it('isolates stored records from later mutation', async () => {
     const s = new MemoryStore();
     const run = {

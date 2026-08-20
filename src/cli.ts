@@ -19,7 +19,7 @@ interface ParsedArgs {
   errors: string[];
 }
 
-// Every keel flag takes a value (--store, --db, --port, --host). A bare
+// Every keel flag takes a value (--store, --db, --port). A bare
 // trailing flag or one followed by another flag is a usage error rather than a
 // silently-dropped option, so `keel runs --store` fails loudly instead of
 // quietly falling back to the default store.
@@ -74,15 +74,46 @@ Usage:
 
 The store defaults to keel-data/keel.json. resume and signal mark a run for
 your running Worker or Supervisor to pick up; they do not execute workflow
-code themselves (that lives in your app).`;
+code themselves (that lives in your app). The same applies to the dashboard
+started here: no engine in this process, so its Resume button reports that and
+signals are only stored.`;
 
 function statusLine(r: RunRecord): string {
   return `${r.id}  ${r.status.padEnd(9)}  ${r.workflowName}`;
 }
 
+// Only SqliteStore holds an OS file handle, and Store has no close() because
+// the other two stores need none. A one-shot `keel` process would drop it at
+// exit, but runCli is also called in-process (the tests do), where every
+// invocation would leak a handle and hold the WAL.
+const closeStore = (store: Store | undefined): void => {
+  (store as { close?: () => void } | undefined)?.close?.();
+};
+
 export async function runCli(
   argv: string[],
   io: CliIO = defaultIO,
+): Promise<number> {
+  let opened: Store | undefined;
+  const openStore = async (
+    flags: Record<string, string>,
+  ): Promise<Store> => {
+    opened = await resolveStore(flags);
+    return opened;
+  };
+  try {
+    return await dispatch(argv, io, openStore);
+  } finally {
+    // `dashboard` keeps serving after runCli returns, so it hands its store to
+    // the server's close event instead.
+    if (argv[0] !== 'dashboard') closeStore(opened);
+  }
+}
+
+async function dispatch(
+  argv: string[],
+  io: CliIO,
+  openStore: (flags: Record<string, string>) => Promise<Store>,
 ): Promise<number> {
   const { command, positionals, flags, errors } = parseArgs(argv);
 
@@ -97,7 +128,7 @@ export async function runCli(
   }
 
   if (command === 'runs') {
-    const store = await resolveStore(flags);
+    const store = await openStore(flags);
     const runs = (await store.listRuns()).sort((a, b) => b.createdAt - a.createdAt);
     if (runs.length === 0) {
       io.out('no runs');
@@ -113,7 +144,7 @@ export async function runCli(
       io.err('usage: keel inspect <runId>');
       return 1;
     }
-    const store = await resolveStore(flags);
+    const store = await openStore(flags);
     const run = await store.getRun(id);
     if (!run) {
       io.err(`run ${id} not found`);
@@ -142,7 +173,7 @@ export async function runCli(
       io.err('usage: keel resume <runId>');
       return 1;
     }
-    const store = await resolveStore(flags);
+    const store = await openStore(flags);
     const run = await store.getRun(id);
     if (!run) {
       io.err(`run ${id} not found`);
@@ -163,7 +194,7 @@ export async function runCli(
       io.err('usage: keel cancel <runId>');
       return 1;
     }
-    const store = await resolveStore(flags);
+    const store = await openStore(flags);
     const run = await store.getRun(id);
     if (!run) {
       io.err(`run ${id} not found`);
@@ -188,7 +219,7 @@ export async function runCli(
       io.err('usage: keel signal <runId> <name> [jsonValue]');
       return 1;
     }
-    const store = await resolveStore(flags);
+    const store = await openStore(flags);
     const run = await store.getRun(id);
     if (!run) {
       io.err(`run ${id} not found`);
@@ -222,9 +253,10 @@ export async function runCli(
       }
       port = n;
     }
-    const store = await resolveStore(flags);
-    const { port: bound } = await startDashboard({ store, port });
-    io.out(`keel dashboard on http://127.0.0.1:${bound}`);
+    const store = await openStore(flags);
+    const { server, port: bound } = await startDashboard({ store, port });
+    server.once('close', () => closeStore(store));
+    io.out(`keel dashboard on http://127.0.0.1:${bound} (no engine: Resume needs an in-process Keel)`);
     return 0;
   }
 

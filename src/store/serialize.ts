@@ -8,16 +8,30 @@
  * MemoryStore, FileStore, and SqliteStore so a workflow that passes in tests
  * behaves the same in production.
  *
- * Allowed: string, number, boolean, null, undefined (treated as absent), plain
- * objects, and arrays thereof.
+ * Allowed: string, finite number, boolean, null, undefined (treated as absent),
+ * plain objects, and arrays thereof.
  */
-export function assertJsonSafe(value: unknown, what: string, path = ''): void {
+export function assertJsonSafe(
+  value: unknown,
+  what: string,
+  path = '',
+  seen: WeakSet<object> = new WeakSet(),
+): void {
   const where = path ? `${what} at ${path}` : what;
   const t = typeof value;
+  if (t === 'number') {
+    // NaN and Infinity survive in MemoryStore but JSON.stringify turns them into
+    // null, so the same workflow would behave differently per store.
+    if (!Number.isFinite(value as number)) {
+      throw new TypeError(
+        `${where}: ${String(value)} is not JSON-serializable; JSON.stringify writes it as null`,
+      );
+    }
+    return;
+  }
   if (
     value === null ||
     t === 'string' ||
-    t === 'number' ||
     t === 'boolean' ||
     t === 'undefined'
   ) {
@@ -31,8 +45,19 @@ export function assertJsonSafe(value: unknown, what: string, path = ''): void {
   if (t === 'function' || t === 'symbol') {
     throw new TypeError(`${where}: ${t}s are not JSON-serializable`);
   }
+  // A cycle would recurse until the stack blew, reporting a RangeError instead
+  // of the clear TypeError this function exists to produce.
+  if (seen.has(value as object)) {
+    throw new TypeError(
+      `${where}: circular reference; JSON.stringify cannot serialize it`,
+    );
+  }
+  // Tracks the current path only, not every object ever visited: the same object
+  // referenced twice side by side is a DAG, which JSON handles fine.
+  seen.add(value as object);
   if (Array.isArray(value)) {
-    value.forEach((v, i) => assertJsonSafe(v, what, `${path}[${i}]`));
+    value.forEach((v, i) => assertJsonSafe(v, what, `${path}[${i}]`, seen));
+    seen.delete(value as object);
     return;
   }
   // Only plain objects survive a JSON round-trip. A non-Object prototype means
@@ -47,6 +72,7 @@ export function assertJsonSafe(value: unknown, what: string, path = ''): void {
     );
   }
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    assertJsonSafe(v, what, path ? `${path}.${k}` : k);
+    assertJsonSafe(v, what, path ? `${path}.${k}` : k, seen);
   }
+  seen.delete(value as object);
 }
