@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="250" viewBox="0 0 880 250" role="img" aria-label="Run 1 runs charge and reserve, saves both, then the process dies before ship. Run 2 serves charge and reserve from disk and runs ship once, so the card is charged exactly once">
+  <rect width="880" height="250" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <g font-family="ui-monospace,SFMono-Regular,Menlo,monospace">
+    <text x="20" y="30" fill="#e6edf3" font-size="14" font-weight="600">one run, two processes</text>
+    <text x="20" y="92" fill="#e6edf3" font-size="13" font-weight="600">RUN 1</text>
+    <rect x="105" y="56" width="180" height="62" rx="8" fill="#161b22" stroke="#3fb950"/>
+    <text x="115" y="82" fill="#c9d1d9" font-size="14" font-weight="600">ctx.step('charge')</text>
+    <text x="115" y="103" fill="#3fb950" font-size="12">ran, saved</text>
+    <path d="M287 87h6" stroke="#30363d" stroke-width="2"/>
+    <rect x="295" y="56" width="180" height="62" rx="8" fill="#161b22" stroke="#3fb950"/>
+    <text x="305" y="82" fill="#c9d1d9" font-size="14" font-weight="600">ctx.step('reserve')</text>
+    <text x="305" y="103" fill="#3fb950" font-size="12">ran, saved</text>
+    <path d="M477 87h6" stroke="#30363d" stroke-width="2"/>
+    <rect x="485" y="56" width="180" height="62" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="495" y="82" fill="#c9d1d9" font-size="14" font-weight="600">ctx.step('ship')</text>
+    <text x="495" y="103" fill="#7d8590" font-size="12">never reached</text>
+    
+    <text x="690" y="92" fill="#f85149" font-size="12">process dies here</text>
+    <text x="20" y="184" fill="#e6edf3" font-size="13" font-weight="600">RUN 2</text>
+    <rect x="105" y="148" width="180" height="62" rx="8" fill="#161b22" stroke="#58a6ff"/>
+    <text x="115" y="174" fill="#c9d1d9" font-size="14" font-weight="600">ctx.step('charge')</text>
+    <text x="115" y="195" fill="#58a6ff" font-size="12">served from disk</text>
+    <path d="M287 179h6" stroke="#30363d" stroke-width="2"/>
+    <rect x="295" y="148" width="180" height="62" rx="8" fill="#161b22" stroke="#58a6ff"/>
+    <text x="305" y="174" fill="#c9d1d9" font-size="14" font-weight="600">ctx.step('reserve')</text>
+    <text x="305" y="195" fill="#58a6ff" font-size="12">served from disk</text>
+    <path d="M477 179h6" stroke="#30363d" stroke-width="2"/>
+    <rect x="485" y="148" width="180" height="62" rx="8" fill="#161b22" stroke="#3fb950"/>
+    <text x="495" y="174" fill="#c9d1d9" font-size="14" font-weight="600">ctx.step('ship')</text>
+    <text x="495" y="195" fill="#3fb950" font-size="12">ran once</text>
+    
+    <text x="690" y="184" fill="#3fb950" font-size="12">card charged once</text>
+    <text x="20" y="228" fill="#7d8590" font-size="12">a finished step is never run twice: keel hands back the saved result instead of calling the function again</text>
+  </g>
+</svg>

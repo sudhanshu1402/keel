@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "assets": "node scripts/make-readme-svg.mjs",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
