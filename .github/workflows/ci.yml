@@ -26,3 +26,5 @@ jobs:
         if: matrix.node-version == '22.x'
         run: npm run test:sqlite
       - run: npm run build
+      - name: README diagrams are current
+        run: npm run assets && git add -A -N assets/ && git diff --exit-code assets/

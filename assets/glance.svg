@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="150" viewBox="0 0 880 150" role="img" aria-label="keel at a glance: steps replay from disk, zero dependencies, no infrastructure, 20,000 steps replayed in 434 milliseconds">
+  <rect width="880" height="150" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <g font-family="ui-monospace,SFMono-Regular,Menlo,monospace">
+    <rect x="20" y="30" width="195" height="96" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="36" y="56" fill="#7d8590" font-size="11" letter-spacing="1">DURABLE</text>
+    <text x="36" y="82" fill="#3fb950" font-size="16" font-weight="600">steps replay</text>
+    <text x="36" y="106" fill="#7d8590" font-size="12">from disk</text>
+    <rect x="235" y="30" width="195" height="96" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="251" y="56" fill="#7d8590" font-size="11" letter-spacing="1">DEPENDENCIES</text>
+    <text x="251" y="82" fill="#58a6ff" font-size="16" font-weight="600">zero</text>
+    <text x="251" y="106" fill="#7d8590" font-size="12">no dependencies field</text>
+    <rect x="450" y="30" width="195" height="96" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="466" y="56" fill="#7d8590" font-size="11" letter-spacing="1">INFRASTRUCTURE</text>
+    <text x="466" y="82" fill="#e6edf3" font-size="16" font-weight="600">none</text>
+    <text x="466" y="106" fill="#7d8590" font-size="12">memory, JSON or SQLite</text>
+    <rect x="665" y="30" width="195" height="96" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="681" y="56" fill="#7d8590" font-size="11" letter-spacing="1">RECOVERY</text>
+    <text x="681" y="82" fill="#d29922" font-size="16" font-weight="600">20,000 steps</text>
+    <text x="681" y="106" fill="#7d8590" font-size="12">replayed in 434 ms</text>
+  </g>
+</svg>
