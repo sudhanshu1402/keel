@@ -212,9 +212,11 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 /**
  * Build and start the dashboard, resolving once it is listening.
  *
- * The dashboard has no authentication and exposes Resume and Signal
- * controls, so it binds to loopback (`127.0.0.1`) by default. Binding to any
- * other host (e.g. `0.0.0.0`) exposes those controls to the network; that is
+ * The dashboard has no authentication. It exposes the Resume and Signal
+ * controls, and it serves run and step error text, which is whatever the
+ * workflow threw and can name internal systems. Both are the point of the tool
+ * and neither is safe to hand to strangers, so it binds to loopback
+ * (`127.0.0.1`) by default. Binding to any other host (e.g. `0.0.0.0`) is
  * refused unless you pass `allowRemote: true` to acknowledge the risk and put
  * your own auth/proxy in front of it.
  */
@@ -225,11 +227,11 @@ export function startDashboard(
   if (!LOOPBACK_HOSTS.has(host)) {
     if (!opts.allowRemote) {
       throw new Error(
-        `refusing to bind keel dashboard to non-loopback host "${host}": it has no authentication and would expose Resume and Signal to the network. Pass allowRemote:true to override, and put it behind your own auth or proxy.`,
+        `refusing to bind keel dashboard to non-loopback host "${host}": it has no authentication and would expose Resume and Signal, and the error text of every run, to the network. Pass allowRemote:true to override, and put it behind your own auth or proxy.`,
       );
     }
     process.emitWarning(
-      `keel dashboard bound to "${host}" with no authentication: anyone who can reach it can resume or signal runs.`,
+      `keel dashboard bound to "${host}" with no authentication: anyone who can reach it can resume or signal runs, and can read the error text of every run.`,
     );
   }
   const server = createDashboard(opts);
