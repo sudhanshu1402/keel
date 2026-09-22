@@ -25,6 +25,18 @@ jobs:
       - name: Tests with node:sqlite store
         if: matrix.node-version == '22.x'
         run: npm run test:sqlite
+      - name: Coverage
+        if: matrix.node-version == '22.x'
+        run: |
+          npm i -D --no-save @vitest/coverage-v8@^4.1.11
+          npx vitest run --coverage
+      - name: Upload coverage report
+        if: matrix.node-version == '22.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage/lcov.info
+          if-no-files-found: error
       - run: npm run build
       - name: README diagrams are current
         run: npm run assets && git add -A -N assets/ && git diff --exit-code assets/
