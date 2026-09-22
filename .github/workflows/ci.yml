@@ -6,7 +6,8 @@ on:
   pull_request:
     branches: ["main"]
 
-# The workflow only reads the repository; nothing here needs write access to it.
+# Read-only by default. The publish job raises its own permissions, which is the
+# whole point of declaring the floor here.
 permissions:
   contents: read
 
@@ -44,3 +45,46 @@ jobs:
       - run: npm run build
       - name: README diagrams are current
         run: npm run assets && git add -A -N assets/ && git diff --exit-code assets/
+
+  # Publishes to GitHub Packages so the package is visible from the repository and
+  # the profile's Packages tab, not only on npmjs.com. This uses the built-in
+  # GITHUB_TOKEN, so it needs no stored credential: `packages: write` on this job is
+  # the entire grant, and it does not widen the read-only floor above.
+  #
+  # It republishes nothing: the version already in the registry is read first and the
+  # publish is skipped unless package.json has moved past it. So pushing to main is
+  # safe by default and a release happens only when the version is bumped.
+  publish:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+          cache: "npm"
+          registry-url: https://npm.pkg.github.com
+          scope: "@sudhanshu1402"
+      - run: npm ci
+      - name: Is this version already published?
+        id: check
+        run: |
+          LOCAL="$(node -p "require('./package.json').version")"
+          PUBLISHED="$(npm view "$(node -p "require('./package.json').name")" version 2>/dev/null || echo 0.0.0)"
+          echo "local=$LOCAL published=$PUBLISHED"
+          if [ "$LOCAL" != "$PUBLISHED" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish to GitHub Packages
+        if: steps.check.outputs.should_publish == 'true'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
