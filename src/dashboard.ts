@@ -42,9 +42,18 @@ function json(res: ServerResponse, status: number, data: unknown): void {
  */
 function fail(res: ServerResponse, err: unknown, context: string): void {
   const ref = randomUUID().slice(0, 8);
-  console.error(`[keel:dashboard] ${ref} ${context}:`, err);
+  // `context` carries the request path, which the caller controls, so it is passed
+  // as an argument rather than spliced into the format string. `console.error`
+  // applies util.format specifiers: a `%s` in the URL would otherwise consume `err`
+  // and rewrite the one line this whole function exists to preserve. Control
+  // characters are flattened for the same reason, so a `%0A` cannot forge a second
+  // line in the log.
+  console.error('[keel:dashboard] %s %s:', ref, oneLine(context), err);
   json(res, 500, { error: 'internal error; see the dashboard process output', ref });
 }
+
+/** Collapses control characters so a log line stays one line. */
+const oneLine = (s: string): string => s.replace(/[\u0000-\u001f\u007f]/g, ' ');
 
 class BodyTooLargeError extends Error {}
 
