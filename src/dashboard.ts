@@ -4,6 +4,7 @@ import {
   type Server,
   type ServerResponse,
 } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import type { Keel } from './runtime.js';
 import type { Store } from './store/types.js';
 
@@ -28,6 +29,31 @@ function json(res: ServerResponse, status: number, data: unknown): void {
   });
   res.end(body);
 }
+
+/**
+ * An unexpected failure returns a generic body and puts the detail in the
+ * process output, which is what OWASP's error-handling guidance asks for. It
+ * matters here because `startDashboard` accepts `allowRemote: true`, so this
+ * response can reach the network, and the underlying message can carry a run
+ * id, a store path or a stack from workflow code.
+ *
+ * `ref` is the whole point: it is the one thing an operator needs to find the
+ * matching line in the log, so nothing is actually lost by not sending detail.
+ */
+function fail(res: ServerResponse, err: unknown, context: string): void {
+  const ref = randomUUID().slice(0, 8);
+  // `context` carries the request path, which the caller controls, so it is passed
+  // as an argument rather than spliced into the format string. `console.error`
+  // applies util.format specifiers: a `%s` in the URL would otherwise consume `err`
+  // and rewrite the one line this whole function exists to preserve. Control
+  // characters are flattened for the same reason, so a `%0A` cannot forge a second
+  // line in the log.
+  console.error('[keel:dashboard] %s %s:', ref, oneLine(context), err);
+  json(res, 500, { error: 'internal error; see the dashboard process output', ref });
+}
+
+/** Collapses control characters so a log line stays one line. */
+const oneLine = (s: string): string => s.replace(/[\u0000-\u001f\u007f]/g, ' ');
 
 class BodyTooLargeError extends Error {}
 
@@ -120,7 +146,7 @@ async function handle(
       const result = await keel.resume(decodeURIComponent(resume[1]!));
       json(res, 200, result);
     } catch (err) {
-      json(res, 500, { error: err instanceof Error ? err.message : String(err) });
+      fail(res, err, `resume ${decodeURIComponent(resume[1]!)} failed`);
     }
     return;
   }
@@ -176,7 +202,7 @@ async function handle(
 export function createDashboard(opts: DashboardOptions): Server {
   return createServer((req, res) => {
     void handle(req, res, opts.store, opts.keel).catch((err) => {
-      json(res, 500, { error: err instanceof Error ? err.message : String(err) });
+      fail(res, err, `${req.method ?? 'GET'} ${req.url ?? '/'} failed`);
     });
   });
 }
@@ -304,6 +330,20 @@ const PAGE = `<!doctype html>
 <script>
 let selected = null;
 let hasEngine = false;
+// Resume and Send-signal used to swallow a failed response, so a rejected action
+// looked identical to a successful one. The note is shown on the next render and
+// carries the server's ref, which is what ties it to the line in the log.
+let pendingNote = '';
+
+async function act(path, init) {
+  const res = await fetch(path, init);
+  if (res.ok) { pendingNote = ''; return true; }
+  let body = null;
+  try { body = await res.json(); } catch (e) { body = null; }
+  const ref = body && body.ref ? ' (ref ' + body.ref + ')' : '';
+  pendingNote = ((body && body.error) || ('request failed with ' + res.status)) + ref;
+  return false;
+}
 const ESC = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','\`':'&#96;','=':'&#61;','/':'&#47;'};
 const esc = (s) => String(s).replace(/[&<>"'\`=\\/]/g, (c) => ESC[c]);
 const fmt = (t) => t ? new Date(t).toLocaleTimeString() : '-';
@@ -334,6 +374,7 @@ async function loadDetail() {
   const { run, steps } = await res.json();
   const canResume = run.status === 'paused' || run.status === 'failed';
   let html = '<div class="row-gap"><span class="id">' + esc(run.id) + '</span>' + badge(run.status) + '</div>';
+  if (pendingNote) html += '<div class="err" style="margin-top:8px">' + esc(pendingNote) + '</div>';
   if (run.error) html += '<div class="err" style="margin-top:8px">' + esc(run.error) + '</div>';
   html += '<div class="actions">';
   html += '<button ' + (canResume && hasEngine ? '' : 'disabled') + ' onclick="doResume()">Resume</button>';
@@ -358,7 +399,7 @@ function renderStep(s) {
 }
 
 async function doResume() {
-  await fetch('/api/runs/' + encodeURIComponent(selected) + '/resume', { method:'POST' });
+  await act('/api/runs/' + encodeURIComponent(selected) + '/resume', { method:'POST' });
   loadRuns();
 }
 async function doSignal() {
@@ -366,7 +407,7 @@ async function doSignal() {
   if (!name) return;
   let value = document.getElementById('sig-val').value;
   try { value = value ? JSON.parse(value) : null; } catch (e) { /* send as string */ }
-  await fetch('/api/runs/' + encodeURIComponent(selected) + '/signal', {
+  await act('/api/runs/' + encodeURIComponent(selected) + '/signal', {
     method:'POST', headers:{'content-type':'application/json'},
     body: JSON.stringify({ name, value }),
   });

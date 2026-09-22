@@ -1,5 +1,6 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { Server } from 'node:http';
+import { format } from 'node:util';
 import { createTestKeel, defineWorkflow, startDashboard } from '../src/index.js';
 
 let server: Server | undefined;
@@ -97,5 +98,87 @@ describe('dashboard', () => {
     expect(sig.status).toBe(200);
     expect(sig.body.stored).toBe(true);
     expect((await t.store.getSignal(r.runId, 'x'))?.value).toBe(1);
+  });
+  // CWE-209. startDashboard accepts allowRemote:true, so a 500 body can reach the
+  // network, and keel.resume throws messages that carry the run id and, for a
+  // failure inside workflow code, whatever that code threw. OWASP's guidance is a
+  // generic body to the caller and the detail in the log; both halves are asserted
+  // here, because dropping the detail entirely would be the other way to fail.
+  it('keeps internal error detail out of the response and puts it in the log', async () => {
+    const logged: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      logged.push(args.map((a) => (a instanceof Error ? a.message : String(a))).join(' '));
+    });
+
+    try {
+      const t = createTestKeel();
+      const started = await startDashboard({ store: t.store, keel: t.keel, port: 0 });
+      server = started.server;
+
+      const res = await post(started.port, '/api/runs/secret-run-id/resume', {});
+
+      expect(res.status).toBe(500);
+      expect(res.body.ref).toMatch(/^[0-9a-f]{8}$/);
+      // The underlying throw is `run secret-run-id not found`.
+      expect(JSON.stringify(res.body)).not.toContain('secret-run-id');
+      expect(JSON.stringify(res.body)).not.toContain('not found');
+
+      const line = logged.find((l) => l.includes(res.body.ref));
+      expect(line, 'the ref must appear in the log so it can be correlated').toBeTruthy();
+      expect(line).toContain('secret-run-id');
+      expect(line).toContain('not found');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  // The request path reaches `console.error`. If it were spliced into the format
+  // string, a `%s` in the URL would consume the error argument and the log line
+  // would lose the detail the generic response deliberately withheld -- the fix
+  // above would quietly undo itself. A `%0A` would forge a second line.
+  it('does not let a crafted path rewrite or split the log line', async () => {
+    const logged: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      logged.push(format(...(args as [unknown])));
+    });
+
+    try {
+      const t = createTestKeel();
+      const started = await startDashboard({ store: t.store, keel: t.keel, port: 0 });
+      server = started.server;
+
+      // Encoded: `%s %s %s` then a newline then a forged line.
+      const res = await post(started.port, '/api/runs/%25s%20%25s%20%25s%0Aok/resume', {});
+
+      const line = logged.find((l) => l.includes(res.body.ref));
+      expect(line).toBeTruthy();
+      // The error still made it into the log rather than being eaten by the `%s`.
+      expect(line).toContain('not found');
+      // The crafted newline did not start a line of its own: the whole path, `ok`
+      // tail included, is flattened onto the line that carries the ref. Newlines
+      // below that point come from the error's own stack, which is wanted.
+      const first = line!.split('\n')[0];
+      expect(first).toContain(res.body.ref);
+      expect(first).toContain('ok');
+      expect(first).toContain('%s %s %s');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('uses a fresh ref per failure, so two reports cannot be confused', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const t = createTestKeel();
+      const started = await startDashboard({ store: t.store, keel: t.keel, port: 0 });
+      server = started.server;
+
+      const a = await post(started.port, '/api/runs/a/resume', {});
+      const b = await post(started.port, '/api/runs/b/resume', {});
+
+      expect(a.body.ref).not.toBe(b.body.ref);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
