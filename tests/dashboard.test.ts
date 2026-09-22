@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { Server } from 'node:http';
 import { createTestKeel, defineWorkflow, startDashboard } from '../src/index.js';
 
@@ -97,5 +97,53 @@ describe('dashboard', () => {
     expect(sig.status).toBe(200);
     expect(sig.body.stored).toBe(true);
     expect((await t.store.getSignal(r.runId, 'x'))?.value).toBe(1);
+  });
+  // CWE-209. startDashboard accepts allowRemote:true, so a 500 body can reach the
+  // network, and keel.resume throws messages that carry the run id and, for a
+  // failure inside workflow code, whatever that code threw. OWASP's guidance is a
+  // generic body to the caller and the detail in the log; both halves are asserted
+  // here, because dropping the detail entirely would be the other way to fail.
+  it('keeps internal error detail out of the response and puts it in the log', async () => {
+    const logged: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      logged.push(args.map((a) => (a instanceof Error ? a.message : String(a))).join(' '));
+    });
+
+    try {
+      const t = createTestKeel();
+      const started = await startDashboard({ store: t.store, keel: t.keel, port: 0 });
+      server = started.server;
+
+      const res = await post(started.port, '/api/runs/secret-run-id/resume', {});
+
+      expect(res.status).toBe(500);
+      expect(res.body.ref).toMatch(/^[0-9a-f]{8}$/);
+      // The underlying throw is `run secret-run-id not found`.
+      expect(JSON.stringify(res.body)).not.toContain('secret-run-id');
+      expect(JSON.stringify(res.body)).not.toContain('not found');
+
+      const line = logged.find((l) => l.includes(res.body.ref));
+      expect(line, 'the ref must appear in the log so it can be correlated').toBeTruthy();
+      expect(line).toContain('secret-run-id');
+      expect(line).toContain('not found');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('uses a fresh ref per failure, so two reports cannot be confused', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const t = createTestKeel();
+      const started = await startDashboard({ store: t.store, keel: t.keel, port: 0 });
+      server = started.server;
+
+      const a = await post(started.port, '/api/runs/a/resume', {});
+      const b = await post(started.port, '/api/runs/b/resume', {});
+
+      expect(a.body.ref).not.toBe(b.body.ref);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
