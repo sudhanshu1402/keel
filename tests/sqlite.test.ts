@@ -135,8 +135,8 @@ describe.skipIf(!sqliteAvailable)('SqliteStore', () => {
   // updateRun writes only the columns in its patch. It used to round-trip the
   // whole row (getRun, spread, write every column back), which left a window for
   // a claimRun from ANOTHER PROCESS to be reverted between the read and the
-  // write. That interleaving cannot be staged from one process — node:sqlite is
-  // synchronous, so nothing runs between the read and the write here — so this
+  // write. That interleaving cannot be staged from one process - node:sqlite is
+  // synchronous, so nothing runs between the read and the write here - so this
   // test pins the column-scoping behaviour, not the cross-process race.
   it('updateRun patches only its own columns and leaves the lease intact', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'keel-sqlite-'));

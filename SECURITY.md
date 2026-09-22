@@ -25,7 +25,7 @@ Report privately through GitHub instead:
 
 That opens a private advisory visible only to you and the maintainer.
 
-If private reporting is unavailable to you, open an issue that says only that you have a security report and asks for a private channel — no details, no proof of concept.
+If private reporting is unavailable to you, open an issue that says only that you have a security report and asks for a private channel - no details, no proof of concept.
 
 ## What to expect
 

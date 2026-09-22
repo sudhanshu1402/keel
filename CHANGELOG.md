@@ -16,7 +16,7 @@ and its `ref` in the run detail pane.
 
 ## 1.0.1
 
-Correctness fixes. If you installed 1.0.0 from npm, upgrade — that build predates
+Correctness fixes. If you installed 1.0.0 from npm, upgrade - that build predates
 all three. Details and reproductions in [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md);
 each fix landed with a failing-first regression in
 [`tests/correctness-regressions.test.ts`](tests/correctness-regressions.test.ts).

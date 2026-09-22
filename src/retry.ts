@@ -42,7 +42,7 @@ export async function runWithRetry<T>(
 ): Promise<{ result: T; attempts: number }> {
   const sleep = hooks.sleep ?? realSleep;
   // Without this, maxAttempts <= 0 skips the loop entirely and the throw below
-  // rethrows a literal `undefined` — an error with no message and no stack.
+  // rethrows a literal `undefined` - an error with no message and no stack.
   if (!Number.isInteger(policy.maxAttempts) || policy.maxAttempts < 1) {
     throw new TypeError(
       `retry maxAttempts must be an integer >= 1, got ${String(policy.maxAttempts)}`,
