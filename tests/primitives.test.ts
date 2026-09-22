@@ -61,7 +61,7 @@ describe('ctx.all', () => {
   });
 
   // Promise.all rejected on the first failure, so the run was finalized `failed`
-  // while the slower sibling was still executing — it then wrote a `completed`
+  // while the slower sibling was still executing - it then wrote a `completed`
   // step into an already-terminal run.
   it('waits for every sibling before failing the run', async () => {
     const store = new MemoryStore();

@@ -110,7 +110,7 @@ Within one process the engine serializes overlapping passes for the same run, so
 an operator retry racing a worker, a signal delivery racing a resume, or a
 reclaimed lease under a shared engine cannot double-run a step. Across genuinely
 separate processes sharing a store, a lease that expires while a worker is still
-inside a step can be reclaimed and that one step can run a second time — the same
+inside a step can be reclaimed and that one step can run a second time - the same
 at-least-once window as crash-before-persist. Stable per-step idempotency keys
 make the repeat safe. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for the details and
 the regression tests.

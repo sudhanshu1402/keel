@@ -361,8 +361,8 @@ export class Keel {
     const ctx = this.makeContext(runId, priorSteps);
     try {
       const output = await def.handler(ctx, input);
-      // A cancel that lands while the final pass is running — or a new owner that
-      // finalized this run after reclaiming an expired lease — must win over the
+      // A cancel that lands while the final pass is running - or a new owner that
+      // finalized this run after reclaiming an expired lease - must win over the
       // completion write. finalizeRun defers to any terminal state already set.
       return this.finalizeRun<O>(
         runId,
@@ -548,8 +548,8 @@ export class Keel {
           finishedAt,
         });
       } catch (persistErr) {
-        // Separate a deterministic persistence failure — the result itself is
-        // not storable (a Date/Map/bigint), so re-running can never heal it —
+        // Separate a deterministic persistence failure - the result itself is
+        // not storable (a Date/Map/bigint), so re-running can never heal it -
         // from a transient one (a crash or power loss before the write landed,
         // which is the honest at-least-once path that re-runs on resume). Only
         // the former is poisoned; a transient failure re-throws so resume
@@ -638,7 +638,7 @@ export class Keel {
         });
         // allSettled, not all. Promise.all rejects on the first failure, which
         // finalizes the run `failed` while the other children are still
-        // executing — they then write `completed` steps into a terminal run.
+        // executing - they then write `completed` steps into a terminal run.
         // Wait for every child, then rethrow the first failure in array order.
         const settled = await Promise.allSettled(
           planned.map((p) => executeStep(p.childName, p.index, p.fn, opts)),
