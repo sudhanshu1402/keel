@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { Server } from 'node:http';
+import { format } from 'node:util';
 import { createTestKeel, defineWorkflow, startDashboard } from '../src/index.js';
 
 let server: Server | undefined;
@@ -126,6 +127,40 @@ describe('dashboard', () => {
       expect(line, 'the ref must appear in the log so it can be correlated').toBeTruthy();
       expect(line).toContain('secret-run-id');
       expect(line).toContain('not found');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  // The request path reaches `console.error`. If it were spliced into the format
+  // string, a `%s` in the URL would consume the error argument and the log line
+  // would lose the detail the generic response deliberately withheld -- the fix
+  // above would quietly undo itself. A `%0A` would forge a second line.
+  it('does not let a crafted path rewrite or split the log line', async () => {
+    const logged: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      logged.push(format(...(args as [unknown])));
+    });
+
+    try {
+      const t = createTestKeel();
+      const started = await startDashboard({ store: t.store, keel: t.keel, port: 0 });
+      server = started.server;
+
+      // Encoded: `%s %s %s` then a newline then a forged line.
+      const res = await post(started.port, '/api/runs/%25s%20%25s%20%25s%0Aok/resume', {});
+
+      const line = logged.find((l) => l.includes(res.body.ref));
+      expect(line).toBeTruthy();
+      // The error still made it into the log rather than being eaten by the `%s`.
+      expect(line).toContain('not found');
+      // The crafted newline did not start a line of its own: the whole path, `ok`
+      // tail included, is flattened onto the line that carries the ref. Newlines
+      // below that point come from the error's own stack, which is wanted.
+      const first = line!.split('\n')[0];
+      expect(first).toContain(res.body.ref);
+      expect(first).toContain('ok');
+      expect(first).toContain('%s %s %s');
     } finally {
       spy.mockRestore();
     }
