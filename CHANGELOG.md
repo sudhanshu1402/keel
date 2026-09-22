@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.2
+
+A failing dashboard request used to answer with the underlying error message. That
+message can carry a run id, a store path or a stack from workflow code, and
+`startDashboard` accepts `allowRemote: true`, so the response is not necessarily
+staying on loopback. Unexpected failures now return a generic body plus a short
+`ref`, and the full detail goes to the dashboard process output under the same
+`ref`. Nothing is lost for whoever is running it; nothing useful is handed to
+whoever is not.
+
+The dashboard's Resume and Signal buttons previously discarded the response
+entirely, so a failure looked like nothing happening. They now surface the error
+and its `ref` in the run detail pane.
+
 ## 1.0.1
 
 Correctness fixes. If you installed 1.0.0 from npm, upgrade — that build predates
