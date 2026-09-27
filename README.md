@@ -1,16 +1,12 @@
-<h1>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sudhanshu1402/keel/main/assets/banner-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/sudhanshu1402/keel/main/assets/banner-light.svg" />
-  <img src="https://raw.githubusercontent.com/sudhanshu1402/keel/main/assets/banner-dark.svg" width="100%" alt="keel: durable execution for TypeScript, no server and no database. on npm, zero runtime dependencies, node >= 20. The failure it exists for: the process dies after the charge. restart replays from disk. charged once." />
-</picture>
-</h1>
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/sudhanshu1402/keel/main/assets/hero.svg" width="100%" alt="keel, as an 8-bit game: stage 1, the process dies right after the charge. Continue: charge and reserve replay, ship clears, the card is charged once. Durable execution for TypeScript, zero runtime dependencies." />
 
 [![CI](https://github.com/sudhanshu1402/keel/actions/workflows/ci.yml/badge.svg)](https://github.com/sudhanshu1402/keel/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/%40sudhanshu1402%2Fkeel.svg)](https://www.npmjs.com/package/@sudhanshu1402/keel) [![npm downloads](https://img.shields.io/npm/dm/%40sudhanshu1402%2Fkeel.svg)](https://www.npmjs.com/package/@sudhanshu1402/keel) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
 
-Durable execution for TypeScript: crash-safe workflows replayed step by step from disk, with no server, no database cluster and no build step. Same idea as Temporal and Vercel Workflow, in a plain Node script.
+</div>
 
-![keel at a glance: steps replay from disk, zero dependencies, no infrastructure, 20,000 steps replayed in 434 milliseconds](https://raw.githubusercontent.com/sudhanshu1402/keel/main/assets/glance.svg)
+Durable execution for TypeScript: crash-safe workflows replayed step by step from disk, with no server, no database cluster and no build step. Same idea as Temporal and Vercel Workflow, in a plain Node script.
 
 ![keel charges a card, crashes, then resumes and ships without charging again](demo/demo.gif)
 
@@ -87,7 +83,7 @@ Side by side in [COMPARISON.md](docs/COMPARISON.md).
 |---|---|
 | [GUIDE.md](docs/GUIDE.md) | signals, durable sleep, LLM steps, agents, SQLite and multi-worker, testing, hardening |
 | [API.md](docs/API.md) | full API and CLI reference |
-| [BENCHMARKS.md](docs/BENCHMARKS.md) | throughput and recovery numbers, including the 434 ms above |
+| [BENCHMARKS.md](docs/BENCHMARKS.md) | throughput and recovery numbers, including the 434 ms SQLite replay |
 | [COMPARISON.md](docs/COMPARISON.md) | side by side with Vercel Workflow, Temporal, Inngest |
 | [LIMITATIONS.md](docs/LIMITATIONS.md) | what keel deliberately does not do |
 | [KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) | open correctness issues, read before production use |
@@ -97,6 +93,10 @@ Side by side in [COMPARISON.md](docs/COMPARISON.md).
 v1.0, CI on Node 20 and 22. The `SqliteStore` suite is Node 22 only, because `node:sqlite` needs 22.5+ with `--experimental-sqlite`; the engine, `MemoryStore` and `FileStore` run on 20. keel targets a long-lived Node process; edge and serverless runtimes are out of scope by design.
 
 Regenerate the diagrams with `npm run assets`.
+
+---
+
+<sub>Part of [sudhanshu1402](https://github.com/sudhanshu1402)'s work: **keel** · [nocap](https://github.com/sudhanshu1402/nocap) · [receipts](https://github.com/sudhanshu1402/receipts) · [enterprise-auth-stack](https://github.com/sudhanshu1402/enterprise-auth-stack) · [distributed-queue-engine](https://github.com/sudhanshu1402/distributed-queue-engine) · [multi-region-mongo-patterns](https://github.com/sudhanshu1402/multi-region-mongo-patterns) · [otel-sdk-node](https://github.com/sudhanshu1402/otel-sdk-node) · [llm-assessment-pipeline](https://github.com/sudhanshu1402/llm-assessment-pipeline). Write-ups on the [System Design Portal](https://sudhanshu1402.github.io/system-design-portal/).</sub>
 
 ## License
 
